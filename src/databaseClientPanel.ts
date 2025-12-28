@@ -8,6 +8,7 @@ import { SavedQueryManager } from './savedQueryManager';
 import { TSVReader } from './tsvReader';
 import { SqlValidator } from './sqlValidator';
 import { SqlFormatter } from './sqlFormatter';
+import { SqlCommentParser } from './sqlCommentParser';
 
 /**
  * データベースクライアントのWebviewパネルを管理するクラス
@@ -934,6 +935,9 @@ export class DatabaseClientPanel {
                 throw new Error(validation.error || 'Invalid SQL query');
             }
 
+            // コメントから表示オプションをパース
+            const displayOptions = SqlCommentParser.parseOptions(query);
+
             // クエリを実行
             const result = await this._currentConnection.executeQuery(query);
 
@@ -962,7 +966,8 @@ export class DatabaseClientPanel {
                 columns: result.columns,
                 rows: result.rows,
                 rowCount: result.rowCount,
-                executionTime: result.executionTime
+                executionTime: result.executionTime,
+                displayOptions: Array.from(displayOptions.columns.entries()).map(([_, opts]) => opts)
             });
 
             vscode.window.showInformationMessage(`クエリを実行しました (${result.rowCount}行, ${result.executionTime.toFixed(3)}秒)`);
@@ -2164,6 +2169,97 @@ export class DatabaseClientPanel {
             }, 500);
         }
 
+        // 値のフォーマット関数
+        function formatValue(value, options) {
+            if (value === null || value === undefined) {
+                return null;
+            }
+
+            const strValue = String(value);
+
+            // 数値フォーマット
+            if (options.format === 'number') {
+                const num = parseFloat(strValue);
+                if (isNaN(num)) {
+                    return strValue;
+                }
+
+                // 小数点以下の桁数
+                let formatted = options.decimal !== undefined
+                    ? num.toFixed(options.decimal)
+                    : num.toString();
+
+                // カンマ区切り
+                if (options.comma) {
+                    const parts = formatted.split('.');
+                    parts[0] = parts[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');
+                    formatted = parts.join('.');
+                }
+
+                return formatted;
+            }
+
+            // 日時フォーマット
+            if (options.format === 'datetime' && options.pattern) {
+                try {
+                    const date = new Date(strValue);
+                    if (!isNaN(date.getTime())) {
+                        return formatDateTime(date, options.pattern);
+                    }
+                } catch (error) {
+                    // パースエラーの場合は元の値を返す
+                }
+            }
+
+            return strValue;
+        }
+
+        // 日時フォーマット関数
+        function formatDateTime(date, pattern) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+
+            return pattern
+                .replace('yyyy', String(year))
+                .replace('MM', month)
+                .replace('dd', day)
+                .replace('HH', hours)
+                .replace('mm', minutes)
+                .replace('ss', seconds);
+        }
+
+        // 列スタイル生成関数
+        function generateColumnStyle(options) {
+            const styles = [];
+
+            if (options.align) {
+                styles.push(\`text-align: \${options.align}\`);
+            }
+
+            if (options.width) {
+                styles.push(\`width: \${options.width}\`);
+                styles.push(\`min-width: \${options.width}\`);
+            }
+
+            if (options.backgroundColor) {
+                styles.push(\`background-color: \${options.backgroundColor}\`);
+            }
+
+            if (options.color) {
+                styles.push(\`color: \${options.color}\`);
+            }
+
+            if (options.fontWeight) {
+                styles.push(\`font-weight: \${options.fontWeight}\`);
+            }
+
+            return styles.join('; ');
+        }
+
         function handleQueryResult(message) {
             if (!message.success) {
                 showMessage(message.error || 'クエリの実行に失敗しました', 'error');
@@ -2176,23 +2272,37 @@ export class DatabaseClientPanel {
                 rows: message.rows,
                 rowCount: message.rowCount,
                 executionTime: message.executionTime,
-                query: document.getElementById('sqlInput').value
+                query: document.getElementById('sqlInput').value,
+                displayOptions: message.displayOptions
             };
+
+            // 表示オプションをMapに変換
+            const displayOptionsMap = new Map();
+            if (message.displayOptions) {
+                message.displayOptions.forEach(opt => {
+                    displayOptionsMap.set(opt.columnName, opt);
+                });
+            }
 
             // テーブルを生成
             const { columns, rows, rowCount, executionTime } = message;
             let html = '<table><thead><tr>';
             
             columns.forEach(col => {
-                html += \`<th>\${col}</th>\`;
+                const opts = displayOptionsMap.get(col);
+                const style = opts ? generateColumnStyle(opts) : '';
+                html += \`<th style="\${style}">\${col}</th>\`;
             });
             html += '</tr></thead><tbody>';
 
             rows.forEach(row => {
                 html += '<tr>';
                 columns.forEach(col => {
+                    const opts = displayOptionsMap.get(col);
                     const value = row[col];
-                    html += \`<td>\${value !== null && value !== undefined ? value : '<NULL>'}</td>\`;
+                    const formattedValue = opts ? formatValue(value, opts) : value;
+                    const style = opts ? generateColumnStyle(opts) : '';
+                    html += \`<td style="\${style}">\${formattedValue !== null && formattedValue !== undefined ? formattedValue : '<NULL>'}</td>\`;
                 });
                 html += '</tr>';
             });
