@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ConnectionProfileManager, IDBConnection, ConnectionFactory } from './database';
 import { SchemaDocumentGenerator } from './schemaDocumentGenerator';
+import { QueryResultSaver } from './queryResultSaver';
 
 /**
  * データベースクライアントのWebviewパネルを管理するクラス
@@ -123,6 +124,9 @@ export class DatabaseClientPanel {
                 break;
             case 'executeQuery':
                 this._handleExecuteQuery(message.data);
+                break;
+            case 'saveQueryResult':
+                this._handleSaveQueryResult(message.data);
                 break;
             case 'info':
                 vscode.window.showInformationMessage(message.text);
@@ -435,6 +439,51 @@ export class DatabaseClientPanel {
             vscode.window.showErrorMessage(`スキーマ抽出エラー: ${errorMessage}`);
         }
     }
+
+    /**
+     * クエリ結果を保存
+     */
+    private async _handleSaveQueryResult(data: any) {
+        try {
+            const saver = new QueryResultSaver();
+            
+            // 行データを配列形式に変換
+            const rows = data.rows.map((row: any) => {
+                return data.columns.map((col: string) => row[col]);
+            });
+
+            // 保存
+            const filePath = await saver.saveQueryResult(
+                data.columns,
+                rows,
+                data.options
+            );
+
+            // 成功を通知
+            const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
+            
+            this.sendMessage({
+                type: 'saveResult',
+                success: true,
+                filePath,
+                fileName
+            });
+
+            vscode.window.showInformationMessage(`クエリ結果を保存しました: ${fileName}`);
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            this.sendMessage({
+                type: 'saveResult',
+                success: false,
+                error: errorMessage
+            });
+
+            vscode.window.showErrorMessage(`保存エラー: ${errorMessage}`);
+        }
+    }
+
     private async _handleTestConnection(data: any) {
         try {
             const profile = this._profileManager.getProfile(data.profileId);
@@ -796,6 +845,16 @@ export class DatabaseClientPanel {
         .checkbox-group input[type="checkbox"] {
             width: auto;
         }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .radio-group input[type="radio"] {
+            width: auto;
+        }
     </style>
 </head>
 <body>
@@ -907,6 +966,65 @@ export class DatabaseClientPanel {
         </div>
     </div>
 
+    <!-- クエリ結果保存モーダル -->
+    <div id="saveResultModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>クエリ結果を保存</h2>
+                <button class="close-button" onclick="closeSaveDialog()">&times;</button>
+            </div>
+            
+            <form id="saveResultForm" onsubmit="submitSaveResult(event)">
+                <div class="form-group">
+                    <label for="resultName">名前 *</label>
+                    <input type="text" id="resultName" required placeholder="例: ユーザー一覧_2025年12月">
+                    <small style="color: var(--vscode-descriptionForeground);">
+                        ファイル名に使用されます（自動的にタイムスタンプが追加されます）
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="resultComment">コメント・説明</label>
+                    <textarea id="resultComment" rows="4" placeholder="このクエリ結果の目的や背景を記入してください&#10;例: 2025年12月の新規登録ユーザー分析用データ。del_kbn=0（有効ユーザー）のみを抽出。"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>保存形式 *</label>
+                    <div class="radio-group">
+                        <label style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <input type="radio" name="resultFormat" value="tsv" checked style="margin-right: 8px;">
+                            <div>
+                                <div>TSV (Tab-Separated Values)</div>
+                                <small style="color: var(--vscode-descriptionForeground);">
+                                    Excel、スプレッドシートで開きやすい形式
+                                </small>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center;">
+                            <input type="radio" name="resultFormat" value="json" style="margin-right: 8px;">
+                            <div>
+                                <div>JSON</div>
+                                <small style="color: var(--vscode-descriptionForeground);">
+                                    プログラムで処理しやすい形式、Cursorでの分析に最適
+                                </small>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>実行したSQL</label>
+                    <div style="background-color: var(--vscode-editor-background); padding: 10px; border: 1px solid var(--vscode-panel-border); font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; word-wrap: break-word; max-height: 150px; overflow-y: auto;" id="saveResultQuery"></div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="secondary" onclick="closeSaveDialog()">キャンセル</button>
+                    <button type="submit">💾 保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         const vscode = acquireVsCodeApi();
         
@@ -944,6 +1062,9 @@ export class DatabaseClientPanel {
                     break;
                 case 'queryResult':
                     handleQueryResult(message);
+                    break;
+                case 'saveResult':
+                    handleSaveResult(message);
                     break;
             }
         });
@@ -1071,10 +1192,6 @@ export class DatabaseClientPanel {
             document.getElementById('sqlInput').value = '';
         }
 
-        function saveResult() {
-            showMessage('結果保存機能は実装中です', 'info');
-        }
-
         function openConnectionManager() {
             document.getElementById('connectionManagerModal').className = 'modal show';
             vscode.postMessage({ type: 'getProfiles' });
@@ -1173,11 +1290,70 @@ export class DatabaseClientPanel {
             showMessage('データ管理機能は実装中です', 'info');
         }
 
+        function saveResult() {
+            if (!window.lastQueryResult) {
+                showMessage('保存する結果がありません。先にクエリを実行してください。', 'error');
+                return;
+            }
+
+            // ダイアログを開く
+            document.getElementById('resultName').value = '';
+            document.getElementById('resultComment').value = '';
+            document.getElementById('saveResultQuery').textContent = window.lastQueryResult.query;
+            document.getElementById('saveResultModal').className = 'modal show';
+        }
+
+        function closeSaveDialog() {
+            document.getElementById('saveResultModal').className = 'modal';
+        }
+
+        function submitSaveResult(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('resultName').value;
+            const comment = document.getElementById('resultComment').value;
+            const format = document.querySelector('input[name="resultFormat"]:checked').value;
+
+            vscode.postMessage({
+                type: 'saveQueryResult',
+                data: {
+                    columns: window.lastQueryResult.columns,
+                    rows: window.lastQueryResult.rows,
+                    options: {
+                        name,
+                        comment,
+                        format,
+                        query: window.lastQueryResult.query
+                    }
+                }
+            });
+
+            closeSaveDialog();
+        }
+
+        function handleSaveResult(message) {
+            if (!message.success) {
+                showMessage(message.error || '保存に失敗しました', 'error');
+                return;
+            }
+
+            showMessage(\`クエリ結果を保存しました: \${message.fileName}\`, 'success');
+        }
+
         function handleQueryResult(message) {
             if (!message.success) {
                 showMessage(message.error || 'クエリの実行に失敗しました', 'error');
                 return;
             }
+
+            // 結果を保存（後で使用）
+            window.lastQueryResult = {
+                columns: message.columns,
+                rows: message.rows,
+                rowCount: message.rowCount,
+                executionTime: message.executionTime,
+                query: document.getElementById('sqlInput').value
+            };
 
             // テーブルを生成
             const { columns, rows, rowCount, executionTime } = message;

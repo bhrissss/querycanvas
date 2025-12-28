@@ -15,16 +15,18 @@ Cursor/VS Code用のデータベースクライアント拡張機能です。MyS
 - **実行時間計測**: クエリのパフォーマンスを確認
 - **エラーハンドリング**: わかりやすいエラーメッセージ
 
-### 📋 テーブル定義の自動ドキュメント化（実装予定）
+### 📋 テーブル定義の自動ドキュメント化 ⭐
 - テーブル構造を自動取得
 - Markdown形式でドキュメント生成（`db-schema/tables/`）
-- Cursor AIと会話しながらドキュメント改善
+- 論理名・説明をCursor AIと会話しながら追記可能
+- 再取得時に追記した情報を保持
+- 外部キー、インデックス情報も自動抽出
 
-### 💾 クエリ結果の保存（実装予定）
+### 💾 クエリ結果の保存 ⭐
 - **TSV/JSON形式**でエクスポート
-- 名前とコメント付きで管理
-- メタデータ（実行SQL、日時、行数）を記録
-- 保存したデータをCursor AIで分析
+- 名前とコメント付きで管理（`query-results/`）
+- メタデータ（実行SQL、日時、行数）を自動記録
+- 保存したデータをCursor AIで分析可能
 
 ## スクリーンショット
 
@@ -59,17 +61,34 @@ Cursor/VS Code用のデータベースクライアント拡張機能です。MyS
 2. 「**Database Client: Open**」と入力して実行
 3. データベースクライアントパネルが開きます
 
-### 2. データベースに接続（実装予定）
+### 2. データベースに接続
 
 1. 「⚙️ 接続管理」ボタンをクリック
 2. 「+ 新しい接続を追加」
 3. 接続情報を入力して保存
+4. ドロップダウンから接続を選択
+5. 「接続」ボタンをクリック
 
 ### 3. SQLクエリを実行
 
 1. SQL入力エリアにクエリを入力
 2. 「▶ 実行」ボタンをクリック
 3. 結果がテーブルに表示されます
+
+### 4. クエリ結果を保存
+
+1. クエリを実行後、「💾 結果を保存」ボタンをクリック
+2. 名前、コメント、保存形式（TSV/JSON）を入力
+3. 「💾 保存」ボタンで `query-results/` に保存されます
+4. メタデータファイルで過去の保存結果を管理可能
+
+### 5. テーブル定義を取得
+
+1. データベースに接続
+2. 「📋 テーブル定義」ボタンをクリック
+3. すべてのテーブル定義が `db-schema/tables/` にMarkdownで保存されます
+4. Cursor AIと会話しながら、論理名や説明を追記
+5. 再取得時にも追記した情報は保持されます
 
 ## 実装状況
 
@@ -78,12 +97,11 @@ Cursor/VS Code用のデータベースクライアント拡張機能です。MyS
 - データベース接続レイヤー（MySQL/PostgreSQL）
 - インターフェースベースの設計
 - SSL接続サポート
-
-### 🚧 実装中
-- 接続プロファイル管理
-- 実際のクエリ実行機能
-- テーブル定義取得
-- クエリ結果の保存
+- **接続プロファイル管理**（追加・編集・削除）
+- **パスワード管理**（Secret Storage）
+- **実際のクエリ実行機能**
+- **テーブル定義取得＆Markdownドキュメント生成**
+- **クエリ結果の保存機能**（TSV/JSON + メタデータ）
 
 ### 📋 今後の予定
 - クエリ履歴機能
@@ -124,25 +142,33 @@ npm run watch
 ```
 vsex001/
 ├── src/
-│   ├── extension.ts                # 拡張機能のエントリーポイント
-│   ├── databaseClientPanel.ts      # Webview UIの管理
-│   └── database/                   # データベース接続レイヤー
-│       ├── types.ts                # 型定義とインターフェース
-│       ├── mysqlConnection.ts      # MySQL実装
-│       ├── postgresqlConnection.ts # PostgreSQL実装
-│       ├── connectionFactory.ts    # 接続ファクトリー
+│   ├── extension.ts                    # 拡張機能のエントリーポイント
+│   ├── databaseClientPanel.ts          # Webview UIの管理
+│   ├── schemaDocumentGenerator.ts      # スキーマドキュメント生成
+│   ├── queryResultSaver.ts             # クエリ結果保存機能
+│   └── database/                       # データベース接続レイヤー
+│       ├── types.ts                    # 型定義とインターフェース
+│       ├── mysqlConnection.ts          # MySQL実装
+│       ├── postgresqlConnection.ts     # PostgreSQL実装
+│       ├── connectionFactory.ts        # 接続ファクトリー
+│       ├── connectionProfileManager.ts # プロファイル管理
 │       └── index.ts
-├── docs/                          # ドキュメント
-│   ├── conversations/             # 会話履歴
-│   └── specifications/            # 仕様書
-├── out/                           # コンパイル済みJavaScript
+├── docs/                               # ドキュメント
+│   ├── conversations/                  # 会話履歴
+│   └── specifications/                 # 仕様書
+├── db-schema/                          # テーブル定義（自動生成）
+│   └── tables/                         # テーブルごとのMarkdown
+├── query-results/                      # 保存されたクエリ結果
+│   └── metadata.json                   # クエリ結果のメタデータ
+├── out/                                # コンパイル済みJavaScript
 ├── .vscode/
-│   ├── launch.json                # デバッグ設定
-│   └── tasks.json                 # ビルドタスク設定
-├── package.json                   # 拡張機能のマニフェスト
-├── tsconfig.json                  # TypeScript設定
-├── TESTING.md                     # テスト手順
-└── README.md                      # このファイル
+│   ├── launch.json                     # デバッグ設定
+│   ├── tasks.json                      # ビルドタスク設定
+│   └── db-connections.json             # 接続プロファイル（gitignore）
+├── package.json                        # 拡張機能のマニフェスト
+├── tsconfig.json                       # TypeScript設定
+├── TESTING.md                          # テスト手順
+└── README.md                           # このファイル
 ```
 
 ## 技術スタック
