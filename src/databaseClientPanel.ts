@@ -5,6 +5,7 @@ import { QueryResultSaver } from './queryResultSaver';
 import { SessionStateManager } from './sessionStateManager';
 import { AutoQueryResultSaver } from './autoQueryResultSaver';
 import { SavedQueryManager } from './savedQueryManager';
+import { TSVReader } from './tsvReader';
 
 /**
  * データベースクライアントのWebviewパネルを管理するクラス
@@ -269,6 +270,97 @@ export class DatabaseClientPanel {
     }
 
     /**
+     * 名前付きクエリを実行（キャッシュ優先）
+     */
+    private async _handleExecuteNamedQuery(data: any) {
+        try {
+            const query = this._queryManager.getQuery(data.queryId);
+            
+            if (!query) {
+                throw new Error('クエリが見つかりません');
+            }
+
+            // キャッシュファイルが存在するか確認
+            if (query.lastResultFile) {
+                const cachedResult = TSVReader.readTSVFile(query.lastResultFile);
+                
+                if (cachedResult) {
+                    // キャッシュから読み込み成功
+                    vscode.window.showInformationMessage(
+                        `クエリ "${query.name}" のキャッシュ結果を表示 (実行日時: ${new Date(query.lastExecutedAt || '').toLocaleString()})`
+                    );
+
+                    this.sendMessage({
+                        type: 'queryResult',
+                        success: true,
+                        columns: cachedResult.columns,
+                        rows: cachedResult.rows,
+                        rowCount: cachedResult.rowCount,
+                        executionTime: 0, // キャッシュなので0秒
+                        fromCache: true,
+                        cachedAt: query.lastExecutedAt
+                    });
+                    return;
+                }
+            }
+
+            // キャッシュがない、または読み込み失敗の場合は実際に実行
+            // 接続を確認
+            if (!this._currentConnection || !this._currentConnection.isConnected()) {
+                throw new Error('データベースに接続されていません。先に接続してください。');
+            }
+
+            // クエリを実行
+            const result = await this._currentConnection.executeQuery(query.sql);
+
+            // 結果を自動保存（TSV形式）
+            if (result.rows.length > 0) {
+                try {
+                    const rows = result.rows.map((row: any) => {
+                        return result.columns.map((col: string) => row[col]);
+                    });
+                    const filePath = this._autoSaver.autoSaveQueryResult(
+                        result.columns,
+                        rows,
+                        query.sql
+                    );
+                    
+                    // クエリに結果ファイルパスを記録
+                    this._queryManager.updateLastResult(data.queryId, filePath);
+                    
+                    console.log(`クエリ結果を自動保存: ${filePath}`);
+                } catch (saveError) {
+                    console.error('自動保存エラー:', saveError);
+                }
+            }
+
+            // 結果を送信
+            this.sendMessage({
+                type: 'queryResult',
+                success: true,
+                columns: result.columns,
+                rows: result.rows,
+                rowCount: result.rowCount,
+                executionTime: result.executionTime,
+                fromCache: false
+            });
+
+            vscode.window.showInformationMessage(`クエリを実行しました (${result.rowCount}行, ${result.executionTime.toFixed(3)}秒)`);
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            this.sendMessage({
+                type: 'queryResult',
+                success: false,
+                error: errorMessage
+            });
+
+            vscode.window.showErrorMessage(`クエリエラー: ${errorMessage}`);
+        }
+    }
+
+    /**
      * 名前付きクエリを削除
      */
     private _handleDeleteNamedQuery(data: any) {
@@ -348,6 +440,9 @@ export class DatabaseClientPanel {
                 break;
             case 'loadNamedQuery':
                 this._handleLoadNamedQuery(message.data);
+                break;
+            case 'executeNamedQuery':
+                this._handleExecuteNamedQuery(message.data);
                 break;
             case 'deleteNamedQuery':
                 this._handleDeleteNamedQuery(message.data);
@@ -1743,8 +1838,16 @@ export class DatabaseClientPanel {
             html += '</tbody></table>';
             
             document.getElementById('resultTable').innerHTML = html;
-            document.getElementById('resultInfo').textContent = 
-                \`実行時間: \${executionTime.toFixed(3)}秒 | 行数: \${rowCount}\`;
+            
+            // 結果情報を表示
+            if (message.fromCache) {
+                const cachedDate = message.cachedAt ? new Date(message.cachedAt).toLocaleString() : '不明';
+                document.getElementById('resultInfo').textContent = 
+                    \`⚡ キャッシュから表示 (実行日時: \${cachedDate}) | 行数: \${rowCount}\`;
+            } else {
+                document.getElementById('resultInfo').textContent = 
+                    \`実行時間: \${executionTime.toFixed(3)}秒 | 行数: \${rowCount}\`;
+            }
             
             showMessage('クエリが正常に実行されました', 'success');
         }
@@ -1829,6 +1932,11 @@ export class DatabaseClientPanel {
 
             let html = '';
             message.queries.forEach(query => {
+                const hasCachedResult = query.lastResultFile && query.lastExecutedAt;
+                const cachedInfo = hasCachedResult 
+                    ? \`<div style="margin-top: 4px; font-size: 11px; color: var(--vscode-charts-green);">📊 キャッシュ有 (実行日時: \${new Date(query.lastExecutedAt).toLocaleString()})</div>\`
+                    : '';
+                
                 html += \`
                     <div class="profile-item" style="margin-bottom: 10px;">
                         <div class="profile-info" style="flex: 1;">
@@ -1839,19 +1947,29 @@ export class DatabaseClientPanel {
                             \${query.tags && query.tags.length > 0 ? 
                                 '<div style="margin-top: 4px; font-size: 11px; color: var(--vscode-descriptionForeground);">タグ: ' + query.tags.join(', ') + '</div>' 
                                 : ''}
+                            \${cachedInfo}
                             <div style="margin-top: 8px; font-family: monospace; font-size: 11px; background-color: var(--vscode-editor-background); padding: 8px; border: 1px solid var(--vscode-panel-border); max-height: 100px; overflow-y: auto; white-space: pre-wrap;">
                                 \${query.sql}
                             </div>
                         </div>
-                        <div class="profile-actions">
-                            <button onclick="loadSavedQuery('\${query.id}')">読み込み</button>
-                            <button class="secondary" onclick="deleteSavedQuery('\${query.id}')">削除</button>
+                        <div class="profile-actions" style="display: flex; flex-direction: column; gap: 4px;">
+                            <button onclick="executeSavedQuery('\${query.id}')">\${hasCachedResult ? '⚡ キャッシュ表示' : '▶ 実行'}</button>
+                            <button class="secondary" onclick="loadSavedQuery('\${query.id}')">📝 編集</button>
+                            <button class="secondary" onclick="deleteSavedQuery('\${query.id}')">🗑️ 削除</button>
                         </div>
                     </div>
                 \`;
             });
             
             container.innerHTML = html;
+        }
+
+        function executeSavedQuery(queryId) {
+            vscode.postMessage({
+                type: 'executeNamedQuery',
+                data: { queryId }
+            });
+            closeSavedQueries();
         }
 
         function loadSavedQuery(queryId) {

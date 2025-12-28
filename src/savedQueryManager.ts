@@ -13,6 +13,8 @@ export interface SavedQuery {
     tags: string[];
     createdAt: string;
     updatedAt: string;
+    lastResultFile?: string;  // 最後に実行したときのTSVファイルパス
+    lastExecutedAt?: string;  // 最後に実行した日時
 }
 
 /**
@@ -83,6 +85,16 @@ export class SavedQueryManager {
         
         this.writeQueries(queries);
         return queries[index];
+    }
+
+    /**
+     * クエリの実行結果ファイルを記録
+     */
+    updateLastResult(id: string, resultFilePath: string): SavedQuery | null {
+        return this.updateQuery(id, {
+            lastResultFile: resultFilePath,
+            lastExecutedAt: new Date().toISOString()
+        });
     }
 
     /**
