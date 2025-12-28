@@ -78,6 +78,31 @@ SELECT カラム名, ... FROM テーブル名;
 
 **条件演算子:** `<`, `>`, `<=`, `>=`, `==`, `!=`
 
+### 6. 🆕 行スタイル（行全体に色を付ける）
+
+**重要**: 行スタイルは列スタイルとは構文が異なります！
+
+```sql
+-- ✅ 正しい構文（ifキーワードは不要、==を使う、クォート必須）
+@row 国名=="フランス":color=#ff0000,bg=#ffeeee
+@row 売上>1000000:bg=#ccffcc,bold=true
+@row ステータス=="完了":bg=#d4edda,color=#155724
+@row 在庫数<=0:bg=#ff6b6b,color=#ffffff,bold=true
+
+-- ❌ よくある間違い
+@row if 曜日=土:background=#eeeeff  -- ifは不要、=ではなく==、backgroundではなくbg
+@row 国名=フランス:bg=#ffeeee      -- 文字列はクォートで囲む必要がある
+```
+
+**ポイント:**
+- `@row` は**行全体**のスタイルを変更
+- `@column` は**個別のセル**のスタイルを変更
+- 行スタイルでは `if` キーワードは**使わない**
+- 等号は `==`（二重）を使用、`=`（単一）ではない
+- 文字列値は必ず `"値"` または `'値'` でクォート
+- スタイル名: `bg` または `backgroundColor`（`background`ではない）
+- 両方を組み合わせることで、より柔軟な表現が可能
+
 ## 実践例
 
 ### 例1: 売上レポート
@@ -109,6 +134,27 @@ SELECT 部門, 利益 FROM department_profit;
 SELECT 商品名, 在庫数 FROM inventory;
 ```
 
+### 例4: 行スタイルで国別に色分け
+```sql
+/**
+ * @row 国名=="フランス":color=#ff0000,bg=#ffeeee
+ * @row 国名=="日本":color=#0000ff,bg=#eeeeff
+ * @column 売上 align=right format=number comma=true
+ */
+SELECT 国名, 都市, 売上, 担当者 FROM sales_data;
+```
+
+### 例5: 行と列のスタイルを組み合わせ
+```sql
+/**
+ * @row 達成率>=100:bg=#e8f5e9
+ * @row 達成率<80:bg=#ffebee
+ * @column 売上 type=int align=right format=number comma=true if<0:color=red
+ * @column 達成率 type=float align=right format=number decimal=1 if<80:color=red if>=100:color=green,bold=true
+ */
+SELECT 店舗名, 売上, 達成率, 前年比 FROM performance_dashboard;
+```
+
 ## 💡 Cursor AIとの連携
 
 ### セッションファイル経由でSQLを編集
@@ -132,7 +178,10 @@ Cursorが自動的に以下のようなコメントを追加してくれます�
 
 もっと詳しく知りたい場合は：
 - **完全な仕様書**: `docs/specifications/display-options.md`
-- **サンプルSQL集**: `docs/examples/conditional-styling-examples.sql`
+- **サンプルSQL集**: 
+  - 列スタイル: `docs/examples/conditional-styling-examples.sql`
+  - 行スタイル: `docs/examples/row-styling-examples.sql`
+- **行スタイリングガイド**: `docs/ROW-STYLING-GUIDE.md` 🆕
 - **Cursor AI連携ガイド**: `.cursorrules` の "SQL Display Options Feature" セクション
 - **実装記録**: `docs/conversations/2025-12-28_条件付きスタイリング実装.md`
 
@@ -146,8 +195,17 @@ Cursorが自動的に以下のようなコメントを追加してくれます�
 | 日付表示 | `format=datetime pattern=yyyy/MM/dd` | `@column 日付 format=datetime pattern=yyyy/MM/dd` |
 | 赤字 | `color=red` | `@column エラー color=red` |
 | 太字 | `bold=true` | `@column 重要 bold=true` |
-| マイナスを赤字 | `type=int if<0:color=red` | `@column 損益 type=int if<0:color=red` |
-| 条件で背景色 | `if>=100:bg=#e6f3ff` | `@column 達成率 type=float if>=100:bg=#e6f3ff` |
+| マイナスを赤字（列） | `type=int if<0:color=red` | `@column 損益 type=int if<0:color=red` |
+| 条件で背景色（列） | `if>=100:bg=#e6f3ff` | `@column 達成率 type=float if>=100:bg=#e6f3ff` |
+| 🆕 行全体を色分け | `@row 列名=="値":bg=色` | `@row 曜日=="土":bg=#eeeeff` |
+| 🆕 行を条件で強調 | `@row 列名>値:bg=色,bold=true` | `@row 売上>1000000:bg=#ccffcc,bold=true` |
+
+### ⚠️ 重要な違い
+
+| 機能 | ifの使用 | 等号 | 例 |
+|------|---------|------|-----|
+| **列の条件スタイル** | ✅ `if`を使う | 単一でOK | `@column 売上 type=int if<0:color=red` |
+| **行スタイル** | ❌ `if`不要 | `==`（二重） | `@row 曜日=="土":bg=#eee` |
 
 ---
 

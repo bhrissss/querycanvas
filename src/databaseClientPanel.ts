@@ -983,7 +983,8 @@ export class DatabaseClientPanel {
                 rows: result.rows,
                 rowCount: result.rowCount,
                 executionTime: result.executionTime,
-                displayOptions: Array.from(displayOptions.columns.entries()).map(([_, opts]) => opts)
+                displayOptions: Array.from(displayOptions.columns.entries()).map(([_, opts]) => opts),
+                rowStyleRules: displayOptions.rowStyles || []
             });
 
             vscode.window.showInformationMessage(`クエリを実行しました (${result.rowCount}行, ${result.executionTime.toFixed(3)}秒)`);
@@ -1514,7 +1515,6 @@ export class DatabaseClientPanel {
     <!-- 上部：機能ボタン -->
     <div class="toolbar">
         <button onclick="openSavedQueries()">💾 保存済みクエリ</button>
-        <button onclick="setupCursorRules()">📝 Cursor AI設定</button>
         
         <div class="toolbar-spacer"></div>
         
@@ -1555,7 +1555,7 @@ export class DatabaseClientPanel {
         </div>
         <textarea id="sqlInput" placeholder="SELECT * FROM users;" oninput="onSqlInputChange()"></textarea>
         <div class="button-group">
-            <button onclick="executeQuery()">▶ 実行</button>
+            <button id="executeButton" onclick="executeQuery()">▶ 実行</button>
             <button class="secondary" onclick="formatSql()">✨ フォーマット</button>
             <button class="secondary" onclick="clearSQL()">クリア</button>
             <button class="secondary" onclick="saveResult()">💾 結果を保存</button>
@@ -1709,6 +1709,7 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             </select>
             <button onclick="connectToDatabase()">接続</button>
             <button onclick="openConnectionManager()">⚙️ 接続管理</button>
+            <button onclick="setupCursorRules()">📝 Cursor AI設定</button>
         </div>
         
         <!-- 接続時 -->
@@ -2180,6 +2181,11 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
                 return;
             }
 
+            // 実行ボタンを無効化
+            const executeButton = document.getElementById('executeButton');
+            executeButton.disabled = true;
+            executeButton.textContent = '⏳ 実行中...';
+
             vscode.postMessage({
                 type: 'executeQuery',
                 data: { query }
@@ -2401,7 +2407,7 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
                 return;
             }
 
-            const { columns, rows, displayOptions } = window.lastQueryResult;
+            const { columns, rows, displayOptions, rowStyleRules } = window.lastQueryResult;
             
             // 表示オプションをMapに変換
             const displayOptionsMap = new Map();
@@ -2427,7 +2433,10 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             html += '<tbody>';
             rows.forEach((row, rowIndex) => {
                 const bgColor = rowIndex % 2 === 0 ? '#FFFFFF' : '#F2F2F2';
-                html += '<tr>';
+                // 行スタイルを生成
+                const rowStyle = generateRowStyle(row, rowStyleRules || []);
+                const rowStyleAttr = rowStyle ? \` \${rowStyle}\` : '';
+                html += \`<tr style="\${rowStyleAttr}">\`;
                 columns.forEach(col => {
                     const opts = displayOptionsMap.get(col);
                     const value = row[col];
@@ -2694,7 +2703,103 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             return styles.join('; ');
         }
 
+        /**
+         * 行データに基づいて行スタイルを生成
+         * @param rowData 行データ
+         * @param rowStyleRules 行スタイルルール配列
+         * @returns CSSスタイル文字列
+         */
+        function generateRowStyle(rowData, rowStyleRules) {
+            if (!rowStyleRules || rowStyleRules.length === 0) {
+                return '';
+            }
+
+            const styles = [];
+
+            // 各ルールを評価
+            for (const rule of rowStyleRules) {
+                const cellValue = rowData[rule.columnName];
+                if (cellValue === null || cellValue === undefined) {
+                    continue;
+                }
+
+                let conditionMet = false;
+
+                // 値の型に応じて条件を評価
+                if (typeof rule.value === 'number') {
+                    // 数値比較
+                    const numValue = typeof cellValue === 'number' ? cellValue : parseFloat(String(cellValue));
+                    if (!isNaN(numValue)) {
+                        switch (rule.operator) {
+                            case '<':
+                                conditionMet = numValue < rule.value;
+                                break;
+                            case '>':
+                                conditionMet = numValue > rule.value;
+                                break;
+                            case '<=':
+                                conditionMet = numValue <= rule.value;
+                                break;
+                            case '>=':
+                                conditionMet = numValue >= rule.value;
+                                break;
+                            case '==':
+                                conditionMet = numValue === rule.value;
+                                break;
+                            case '!=':
+                                conditionMet = numValue !== rule.value;
+                                break;
+                        }
+                    }
+                } else {
+                    // 文字列比較
+                    const strValue = String(cellValue);
+                    const compareStr = String(rule.value);
+                    switch (rule.operator) {
+                        case '==':
+                            conditionMet = strValue === compareStr;
+                            break;
+                        case '!=':
+                            conditionMet = strValue !== compareStr;
+                            break;
+                        case '<':
+                            conditionMet = strValue < compareStr;
+                            break;
+                        case '>':
+                            conditionMet = strValue > compareStr;
+                            break;
+                        case '<=':
+                            conditionMet = strValue <= compareStr;
+                            break;
+                        case '>=':
+                            conditionMet = strValue >= compareStr;
+                            break;
+                    }
+                }
+
+                // 条件が満たされた場合、スタイルを適用
+                if (conditionMet) {
+                    if (rule.styles.color) {
+                        styles.push(\`color: \${rule.styles.color}\`);
+                    }
+                    if (rule.styles.backgroundColor) {
+                        styles.push(\`background-color: \${rule.styles.backgroundColor}\`);
+                    }
+                    if (rule.styles.fontWeight) {
+                        styles.push(\`font-weight: \${rule.styles.fontWeight}\`);
+                    }
+                }
+            }
+
+            return styles.join('; ');
+        }
+
         function handleQueryResult(message) {
+            // 実行ボタンを再度有効化
+            const executeButton = document.getElementById('executeButton');
+            executeButton.disabled = false;
+            executeButton.textContent = '▶ 実行';
+
             if (!message.success) {
                 showMessage(message.error || 'クエリの実行に失敗しました', 'error');
                 return;
@@ -2707,7 +2812,8 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
                 rowCount: message.rowCount,
                 executionTime: message.executionTime,
                 query: document.getElementById('sqlInput').value,
-                displayOptions: message.displayOptions
+                displayOptions: message.displayOptions,
+                rowStyleRules: message.rowStyleRules
             };
 
             // 表示オプションをMapに変換
@@ -2717,6 +2823,9 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
                     displayOptionsMap.set(opt.columnName, opt);
                 });
             }
+
+            // 行スタイルルール
+            const rowStyleRules = message.rowStyleRules || [];
 
             // テーブルを生成
             const { columns, rows, rowCount, executionTime } = message;
@@ -2730,7 +2839,9 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             html += '</tr></thead><tbody>';
 
             rows.forEach(row => {
-                html += '<tr>';
+                // 行スタイルを生成
+                const rowStyle = generateRowStyle(row, rowStyleRules);
+                html += \`<tr style="\${rowStyle}">\`;
                 columns.forEach(col => {
                     const opts = displayOptionsMap.get(col);
                     const value = row[col];

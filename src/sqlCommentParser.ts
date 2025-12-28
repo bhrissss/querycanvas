@@ -7,7 +7,24 @@ export interface ConditionalStyleRule {
     /** 条件演算子 (<, >, <=, >=, ==, !=) */
     operator: '<' | '>' | '<=' | '>=' | '==' | '!=';
     /** 比較値 */
-    value: number;
+    value: number | string;
+    /** 適用するスタイル */
+    styles: {
+        color?: string;
+        backgroundColor?: string;
+        bold?: boolean;
+        fontWeight?: string;
+    };
+}
+
+/** 行スタイルルール */
+export interface RowStyleRule {
+    /** 対象列名 */
+    columnName: string;
+    /** 条件演算子 (<, >, <=, >=, ==, !=) */
+    operator: '<' | '>' | '<=' | '>=' | '==' | '!=';
+    /** 比較値（数値または文字列） */
+    value: number | string;
     /** 適用するスタイル */
     styles: {
         color?: string;
@@ -47,6 +64,8 @@ export interface ColumnDisplayOptions {
 export interface QueryDisplayOptions {
     /** 列ごとの表示オプション */
     columns: Map<string, ColumnDisplayOptions>;
+    /** 行スタイルルール */
+    rowStyles?: RowStyleRule[];
 }
 
 /**
@@ -60,7 +79,8 @@ export class SqlCommentParser {
      */
     static parseOptions(sql: string): QueryDisplayOptions {
         const options: QueryDisplayOptions = {
-            columns: new Map()
+            columns: new Map(),
+            rowStyles: []
         };
 
         // /** ... */ 形式のコメントを抽出
@@ -73,14 +93,23 @@ export class SqlCommentParser {
 
         // @column ディレクティブを抽出
         const columnDirectives = commentContent.match(/@column\s+([^\n]+)/g);
-        if (!columnDirectives) {
-            return options;
+        if (columnDirectives) {
+            for (const directive of columnDirectives) {
+                const columnOption = this.parseColumnDirective(directive);
+                if (columnOption) {
+                    options.columns.set(columnOption.columnName, columnOption);
+                }
+            }
         }
 
-        for (const directive of columnDirectives) {
-            const columnOption = this.parseColumnDirective(directive);
-            if (columnOption) {
-                options.columns.set(columnOption.columnName, columnOption);
+        // @row ディレクティブを抽出
+        const rowDirectives = commentContent.match(/@row\s+([^\n]+)/g);
+        if (rowDirectives) {
+            for (const directive of rowDirectives) {
+                const rowRule = this.parseRowDirective(directive);
+                if (rowRule) {
+                    options.rowStyles!.push(rowRule);
+                }
             }
         }
 
@@ -224,6 +253,92 @@ export class SqlCommentParser {
     }
 
     /**
+     * @rowディレクティブをパース
+     * @param directive ディレクティブ文字列
+     * @returns 行スタイルルール
+     */
+    private static parseRowDirective(directive: string): RowStyleRule | null {
+        // @row 列名演算子値:スタイル の形式
+        // 例: @row 国名=="フランス":color=#ff0000,bg=#ffeeee
+        // 例: @row 売上>1000000:bg=#ccffcc,bold=true
+        
+        // 文字列値（クォート付き）と数値両方に対応
+        const match = directive.match(/@row\s+(\S+?)([<>!=]+)("([^"]*)"|'([^']*)'|(-?\d+(?:\.\d+)?)):(.+)/);
+        if (!match) {
+            return null;
+        }
+
+        const columnName = match[1];
+        const operator = match[2];
+        // クォート付き文字列または数値
+        const rawValue = match[4] || match[5] || match[6];
+        const styleStr = match[7];
+
+        // 演算子の正規化
+        let normalizedOp: RowStyleRule['operator'];
+        switch (operator) {
+            case '<':
+            case '>':
+            case '<=':
+            case '>=':
+            case '==':
+            case '!=':
+                normalizedOp = operator;
+                break;
+            default:
+                return null; // 不正な演算子
+        }
+
+        // 値の型判定（数値 or 文字列）
+        let compareValue: number | string;
+        if (match[4] || match[5]) {
+            // クォート付き = 文字列
+            compareValue = rawValue;
+        } else {
+            // 数値として試みる
+            const numValue = parseFloat(rawValue);
+            compareValue = isNaN(numValue) ? rawValue : numValue;
+        }
+
+        // スタイルのパース (color=red,bold=true,bg=#ffeeee のような形式)
+        const rule: RowStyleRule = {
+            columnName,
+            operator: normalizedOp,
+            value: compareValue,
+            styles: {}
+        };
+
+        const styleParts = styleStr.split(',');
+        for (const stylePart of styleParts) {
+            const [styleKey, styleValue] = stylePart.trim().split('=');
+            if (!styleKey || !styleValue) {
+                continue;
+            }
+
+            switch (styleKey) {
+                case 'color':
+                    rule.styles.color = styleValue;
+                    break;
+                case 'bg':
+                case 'backgroundColor':
+                    rule.styles.backgroundColor = styleValue;
+                    break;
+                case 'bold':
+                    if (styleValue === 'true') {
+                        rule.styles.bold = true;
+                        rule.styles.fontWeight = 'bold';
+                    }
+                    break;
+                case 'fontWeight':
+                    rule.styles.fontWeight = styleValue;
+                    break;
+            }
+        }
+
+        return rule;
+    }
+
+    /**
      * 値をフォーマット
      * @param value 元の値
      * @param options 列オプション
@@ -350,6 +465,11 @@ export class SqlCommentParser {
             if (!isNaN(numValue)) {
                 // 各条件ルールを評価
                 for (const rule of options.conditionalStyles) {
+                    // 数値比較のみサポート（ConditionalStyleRuleは数値比較用）
+                    if (typeof rule.value !== 'number') {
+                        continue;
+                    }
+
                     let conditionMet = false;
 
                     switch (rule.operator) {
@@ -397,6 +517,93 @@ export class SqlCommentParser {
             }
             if (options.fontWeight) {
                 styles.push(`font-weight: ${options.fontWeight}`);
+            }
+        }
+
+        return styles.join('; ');
+    }
+
+    /**
+     * 行データに基づいて行スタイルを生成
+     * @param rowData 行データ（列名 -> 値のマップ）
+     * @param rules 行スタイルルール配列
+     * @returns CSSスタイル文字列
+     */
+    static generateRowStyle(rowData: { [key: string]: any }, rules: RowStyleRule[]): string {
+        const styles: string[] = [];
+
+        // 各ルールを評価
+        for (const rule of rules) {
+            const cellValue = rowData[rule.columnName];
+            if (cellValue === null || cellValue === undefined) {
+                continue;
+            }
+
+            let conditionMet = false;
+
+            // 値の型に応じて条件を評価
+            if (typeof rule.value === 'number') {
+                // 数値比較
+                const numValue = typeof cellValue === 'number' ? cellValue : parseFloat(String(cellValue));
+                if (!isNaN(numValue)) {
+                    switch (rule.operator) {
+                        case '<':
+                            conditionMet = numValue < rule.value;
+                            break;
+                        case '>':
+                            conditionMet = numValue > rule.value;
+                            break;
+                        case '<=':
+                            conditionMet = numValue <= rule.value;
+                            break;
+                        case '>=':
+                            conditionMet = numValue >= rule.value;
+                            break;
+                        case '==':
+                            conditionMet = numValue === rule.value;
+                            break;
+                        case '!=':
+                            conditionMet = numValue !== rule.value;
+                            break;
+                    }
+                }
+            } else {
+                // 文字列比較
+                const strValue = String(cellValue);
+                const compareStr = String(rule.value);
+                switch (rule.operator) {
+                    case '==':
+                        conditionMet = strValue === compareStr;
+                        break;
+                    case '!=':
+                        conditionMet = strValue !== compareStr;
+                        break;
+                    case '<':
+                        conditionMet = strValue < compareStr;
+                        break;
+                    case '>':
+                        conditionMet = strValue > compareStr;
+                        break;
+                    case '<=':
+                        conditionMet = strValue <= compareStr;
+                        break;
+                    case '>=':
+                        conditionMet = strValue >= compareStr;
+                        break;
+                }
+            }
+
+            // 条件が満たされた場合、スタイルを適用
+            if (conditionMet) {
+                if (rule.styles.color) {
+                    styles.push(`color: ${rule.styles.color}`);
+                }
+                if (rule.styles.backgroundColor) {
+                    styles.push(`background-color: ${rule.styles.backgroundColor}`);
+                }
+                if (rule.styles.fontWeight) {
+                    styles.push(`font-weight: ${rule.styles.fontWeight}`);
+                }
             }
         }
 

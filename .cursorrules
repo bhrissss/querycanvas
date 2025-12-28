@@ -3,6 +3,91 @@
 ## Project Overview
 QueryCanvas is a database client extension for VS Code/Cursor with AI-powered features.
 
+---
+
+## ⚠️ MOST IMPORTANT: SQL Display Options Syntax
+
+When generating SQL with display options, follow these rules EXACTLY:
+
+### @column directive (cell styling)
+```sql
+@column <name> type=int if<0:color=red
+```
+- Use `if<operator><value>:style` for conditions
+- Example: `@column 売上 type=int if<0:color=red if>1000000:color=green`
+
+### @row directive (entire row styling)
+```sql
+@row <column_name><operator><value>:<styles>
+```
+- **NO `if` keyword!**
+- Use `==` (double equals) for equality
+- Quote strings: `"value"` or `'value'`
+- Use `bg` NOT `background`
+- Example: `@row 曜日=="土":bg=#eeeeff`
+- Example: `@row 売上>1000000:bg=#ccffcc,bold=true`
+
+### ❌ WRONG Examples
+```sql
+@row if 曜日=土:background=#eee     ❌ NO! Has 'if', uses '=', uses 'background'
+@row 国名=フランス:bg=#fee           ❌ NO! No quotes, uses single '='
+```
+
+### ✅ CORRECT Examples
+```sql
+@row 曜日=="土":bg=#eee              ✅ YES!
+@row 国名=="フランス":bg=#fee        ✅ YES!
+@row 売上>1000000:bg=#ccffcc         ✅ YES!
+```
+
+---
+
+## 🎨 SQL Display Options - Quick Reference
+
+### Two Types of Styling
+
+#### 1. Column Styling (`@column`) - Styles individual cells
+```sql
+/**
+ * @column 売上 type=int align=right format=number comma=true if<0:color=red
+ */
+```
+- Uses `if<value:style` syntax for conditional styling
+- Applies to individual cells in that column
+
+#### 2. Row Styling (`@row`) - Styles entire rows
+```sql
+/**
+ * @row 曜日=="土":bg=#eeeeff
+ * @row 売上>1000000:bg=#ccffcc,bold=true
+ */
+```
+- **CRITICAL:** Do NOT use `if` keyword
+- Use `==` (double equals) for equality, NOT `=` (single)
+- Strings MUST be quoted: `"値"` or `'値'`
+- Use `bg` or `backgroundColor`, NOT `background`
+- Applies styling to the entire row
+
+### Common Mistakes ⚠️
+
+| ❌ WRONG | ✅ CORRECT |
+|----------|-----------|
+| `@row if 曜日=土:background=#eee` | `@row 曜日=="土":bg=#eee` |
+| `@row 国名=フランス:bg=#fee` | `@row 国名=="フランス":bg=#fee` |
+| `@row 売上>1000:background=#cfc` | `@row 売上>1000:bg=#cfc` |
+
+### Syntax Comparison
+
+| Feature | Column Style | Row Style |
+|---------|-------------|-----------|
+| Directive | `@column` | `@row` |
+| Conditional | `if<0:color=red` | `売上<0:bg=#fcc` |
+| `if` keyword | ✅ YES (use `if`) | ❌ NO (`if` not used) |
+| Equality | `==` or single `=` | `==` (double only) |
+| String values | No quotes needed in options | MUST quote: `"value"` |
+| Example | `@column 損益 type=int if<0:color=red` | `@row 曜日=="土":bg=#eef` |
+
+---
 ## 🤖 Cursor AI Integration
 
 This extension is designed to work seamlessly with Cursor AI. You can edit SQL queries by modifying the session file.
@@ -59,11 +144,12 @@ User: Sees formatted SQL in Database Client
 This extension supports custom display formatting through SQL comments.
 
 ### Syntax
-Use `/** ... */` comments at the beginning or end of SQL queries with `@column` directives:
+Use `/** ... */` comments at the beginning or end of SQL queries with `@column` and `@row` directives:
 
 ```sql
 /**
  * @column <column_name> <option>=<value> <option>=<value> ...
+ * @row <column_name><operator><value>:<styles>
  */
 SELECT ...
 ```
@@ -98,12 +184,26 @@ SELECT ...
 
 #### Data Type & Conditional Styling 🆕
 - `type=int|float|decimal|text` - Specify column data type
-- `if<演算子><値>:<スタイル>` - Conditional styling based on cell value
+- `if<演算子><値>:<スタイル>` - Conditional styling based on cell value (within @column directive)
   - Operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
   - Styles: `color=<color>`, `bg=<color>`, `bold=true`, `fontWeight=<value>`
   - Example: `if<0:color=red` (negative values in red)
   - Example: `if>1000:bold=true` (values over 1000 in bold)
   - Example: `if<=0:color=#999999 if>=10000:color=#ff0000,bold=true` (multiple conditions)
+  - **Note:** This `if` syntax is ONLY for @column directives, NOT for @row directives
+
+#### Row Styling 🆕
+- `@row <column_name><operator><value>:<styles>` - Style entire rows based on column values
+  - **IMPORTANT:** Do NOT use `if` keyword. Use direct comparison: `@row 列名==値` (NOT `@row if 列名=値`)
+  - Operators: `<`, `>`, `<=`, `>=`, `==`, `!=` (use `==` for equality, NOT single `=`)
+  - Values: Numbers (e.g., `1000`) or strings with quotes (e.g., `"フランス"`, `'completed'`)
+  - Styles: `color=<color>`, `bg=<color>` or `backgroundColor=<color>`, `bold=true`, `fontWeight=<value>`
+  - Example: `@row 国名=="フランス":color=#ff0000,bg=#ffeeee` (rows with country="フランス" in red)
+  - Example: `@row 売上>1000000:bg=#ccffcc,bold=true` (rows with sales>1M in green)
+  - Example: `@row ステータス=="完了":bg=#d4edda,color=#155724` (completed rows in green)
+  - **Common mistakes to avoid:**
+    - ❌ `@row if 曜日=土:background=#eeeeff` (WRONG: has `if` keyword, uses `=` instead of `==`, uses `background` instead of `bg`)
+    - ✅ `@row 曜日=="土":bg=#eeeeff` (CORRECT: no `if`, uses `==`, uses `bg`)
 
 ### Examples
 
@@ -139,6 +239,28 @@ SELECT ID, ステータス, 金額, 作成日時 FROM orders;
 SELECT 売上, 在庫数, 達成率 FROM performance_data;
 ```
 
+#### Row Styling Example 🆕
+```sql
+/**
+ * @row 国名=="フランス":color=#ff0000,bg=#ffeeee
+ * @row 国名=="日本":color=#0000ff,bg=#eeeeff
+ * @row 売上>1000000:bg=#ccffcc,bold=true
+ * @column 売上 align=right format=number comma=true
+ */
+SELECT 国名, 都市, 売上, 担当者 FROM sales_data;
+```
+
+#### Row + Column Styling Combined 🆕
+```sql
+/**
+ * @row 達成率>=100:bg=#e8f5e9
+ * @row 達成率<80:bg=#ffebee
+ * @column 売上 type=int align=right format=number comma=true if<0:color=red
+ * @column 達成率 type=float align=right format=number decimal=1 if<80:color=red if>=100:color=green,bold=true
+ */
+SELECT 店舗名, 売上, 達成率, 前年比 FROM performance_dashboard;
+```
+
 ### Implementation Details
 - Parser: `src/sqlCommentParser.ts`
 - Options are extracted in `DatabaseClientPanel._handleExecuteQuery()`
@@ -147,6 +269,7 @@ SELECT 売上, 在庫数, 達成率 FROM performance_data;
 - Datetime formatting uses `formatDateTime()` helper
 - Column styling uses `generateColumnStyle()` helper (for headers)
 - Conditional styling uses `generateConditionalStyle()` helper (for cells, evaluates conditions based on cell values)
+- Row styling uses `generateRowStyle()` helper (for rows, evaluates conditions based on row data) 🆕
 
 ## Coding Guidelines
 
@@ -261,8 +384,36 @@ LIMIT 10;
 4. Use `format=datetime pattern=...` for timestamps
 5. Use conditional styling for highlighting important values (e.g., `if<0:color=red` for negative numbers)
 6. Specify `type=int|float|decimal` when using conditional styling
-7. Keep column names in original language (often Japanese)
-8. Remember this is a read-only client (no INSERT/UPDATE/DELETE)
-9. **🆕 Mention clipboard copy feature when user needs to create reports or presentations**
-10. **🆕 Suggest HTML Copy to preserve styling in PowerPoint/Excel**
+7. **🆕 Use row styling (`@row`) to highlight entire rows based on conditions**
+8. **🆕 Combine row and column styling for sophisticated visual presentations**
+9. Keep column names in original language (often Japanese)
+10. Remember this is a read-only client (no INSERT/UPDATE/DELETE)
+11. **Mention clipboard copy feature when user needs to create reports or presentations**
+12. **Suggest HTML Copy to preserve styling in PowerPoint/Excel**
+
+## ⚠️ CRITICAL: Row Styling Syntax
+
+**When user asks about row styling or @row directives, ALWAYS use this syntax:**
+
+```sql
+@row <column_name><operator><value>:<styles>
+```
+
+**Rules:**
+- ❌ Do NOT use `if` keyword
+- ✅ Use `==` (double equals) for equality
+- ✅ Quote string values: `"土"`, `'完了'`
+- ✅ Use `bg` or `backgroundColor` (NOT `background`)
+
+**Examples:**
+```sql
+@row 曜日=="土":bg=#eeeeff
+@row 売上>1000000:bg=#ccffcc,bold=true
+@row ステータス=="完了":bg=#d4edda,color=#155724
+```
+
+**NOT:**
+```sql
+@row if 曜日=土:background=#eeeeff  ❌ WRONG!
+```
 
