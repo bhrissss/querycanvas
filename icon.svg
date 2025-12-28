@@ -1,0 +1,38 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- グラデーション定義 -->
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7B68EE;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="dbGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#7B68EE;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9370DB;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- パレット（キャンバス）部分 -->
+  <path d="M 200 450 Q 200 350, 300 350 L 550 350 Q 650 350, 650 450 L 650 700 Q 650 800, 550 800 L 300 800 Q 200 800, 200 700 Z M 280 480 Q 280 460, 300 460 Q 320 460, 320 480 Q 320 500, 300 500 Q 280 500, 280 480 Z M 280 580 Q 280 560, 300 560 Q 320 560, 320 580 Q 320 600, 300 600 Q 280 600, 280 580 Z M 280 680 Q 280 660, 300 660 Q 320 660, 320 680 Q 320 700, 300 700 Q 280 700, 280 680 Z M 380 680 Q 380 660, 400 660 Q 420 660, 420 680 Q 420 700, 400 700 Q 380 700, 380 680 Z" 
+        fill="url(#mainGradient)" />
+  
+  <!-- データベースアイコン -->
+  <ellipse cx="650" cy="300" rx="120" ry="40" fill="url(#dbGradient)" />
+  <rect x="530" y="300" width="240" height="80" fill="url(#dbGradient)" />
+  <ellipse cx="650" cy="380" rx="120" ry="40" fill="url(#dbGradient)" />
+  <ellipse cx="650" cy="300" rx="120" ry="40" fill="none" stroke="#FFFFFF" stroke-width="8" />
+  <line x1="530" y1="340" x2="770" y2="340" stroke="#FFFFFF" stroke-width="8" />
+  <ellipse cx="650" cy="380" rx="120" ry="40" fill="none" stroke="#FFFFFF" stroke-width="8" />
+  
+  <!-- データテーブルグリッド -->
+  <g transform="translate(680, 480)">
+    <rect x="0" y="0" width="60" height="50" fill="#4A90E2" stroke="#FFFFFF" stroke-width="4"/>
+    <rect x="70" y="0" width="60" height="50" fill="#5B7FC8" stroke="#FFFFFF" stroke-width="4"/>
+    <rect x="0" y="60" width="60" height="50" fill="#6B6EAE" stroke="#FFFFFF" stroke-width="4"/>
+    <rect x="70" y="60" width="60" height="50" fill="#7B68EE" stroke="#FFFFFF" stroke-width="4"/>
+  </g>
+  
+  <!-- ペイントブラシ（接続線） -->
+  <line x1="420" y1="650" x2="600" y2="350" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="600" cy="350" r="20" fill="#FFFFFF"/>
+</svg>
+

@@ -4,7 +4,7 @@
   "description": "Cursor-integrated database client with smart SQL formatting and display customization",
   "version": "0.1.0",
   "publisher": "okuyamashin",
-  "icon": "icon.png",
+  "icon": "icon.svg",
   "author": {
     "name": "okuyamashin"
   },
