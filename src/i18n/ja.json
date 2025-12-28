@@ -102,6 +102,7 @@
       "key": "キー",
       "default": "デフォルト",
       "remarks": "備考",
+      "description": "説明",
       "autoIncrement": "auto_increment",
       "indexName": "インデックス名",
       "columns": "カラム",

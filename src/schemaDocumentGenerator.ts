@@ -202,7 +202,7 @@ export class SchemaDocumentGenerator {
             
             md += `- \`${col.name}\`\n`;
             md += `  - **${t('schema.template.logicalName')}**: ${logicalName}\n`;
-            md += `  - **Description**: ${description}\n`;
+            md += `  - **${t('schema.template.description')}**: ${description}\n`;
         }
         md += `\n`;
 
@@ -212,13 +212,13 @@ export class SchemaDocumentGenerator {
         md += `\`\`\`markdown\n`;
         md += `- \`del_kbn\`\n`;
         md += `  - **${t('schema.template.logicalName')}**: Delete Flag\n`;
-        md += `  - **Description**: ${t('schema.template.exampleDelKbn')}\n`;
+        md += `  - **${t('schema.template.description')}**: ${t('schema.template.exampleDelKbn')}\n`;
         md += `- \`user_id\`\n`;
         md += `  - **${t('schema.template.logicalName')}**: User ID\n`;
-        md += `  - **Description**: ${t('schema.template.exampleUserId')}\n`;
+        md += `  - **${t('schema.template.description')}**: ${t('schema.template.exampleUserId')}\n`;
         md += `- \`status\`\n`;
         md += `  - **${t('schema.template.logicalName')}**: Status\n`;
-        md += `  - **Description**: ${t('schema.template.exampleStatus')}\n`;
+        md += `  - **${t('schema.template.description')}**: ${t('schema.template.exampleStatus')}\n`;
         md += `\`\`\`\n\n`;
 
         // インデックス情報

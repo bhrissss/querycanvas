@@ -102,6 +102,7 @@
       "key": "Key",
       "default": "Default",
       "remarks": "Remarks",
+      "description": "Description",
       "autoIncrement": "auto_increment",
       "indexName": "Index Name",
       "columns": "Columns",
