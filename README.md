@@ -15,6 +15,7 @@ A database client extension for Cursor/VS Code. Supports MySQL/PostgreSQL with A
 - **Performance Measurement**: Monitor query performance
 - **Error Handling**: Clear error messages
 - **🔒 Read-Only Mode**: Only SELECT, SHOW, DESC, EXPLAIN queries allowed (prevents accidental data modification)
+- **✨ SQL Formatter**: One-click SQL formatting for better readability
 
 ### 📋 Automated Schema Documentation ⭐
 - Automatically extract table structures

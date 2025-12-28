@@ -7,6 +7,7 @@ import { AutoQueryResultSaver } from './autoQueryResultSaver';
 import { SavedQueryManager } from './savedQueryManager';
 import { TSVReader } from './tsvReader';
 import { SqlValidator } from './sqlValidator';
+import { SqlFormatter } from './sqlFormatter';
 
 /**
  * データベースクライアントのWebviewパネルを管理するクラス
@@ -192,6 +193,35 @@ export class DatabaseClientPanel {
      */
     private _handleSqlInputChanged(data: any) {
         this._sessionManager.updateSqlInput(data.sql);
+    }
+
+    /**
+     * SQLをフォーマット
+     */
+    private _handleFormatSql(data: any) {
+        try {
+            const sql = data.sql;
+            if (!sql || sql.trim().length === 0) {
+                vscode.window.showWarningMessage('フォーマットするSQLがありません');
+                return;
+            }
+
+            const formatted = SqlFormatter.format(sql);
+            
+            // フォーマット済みSQLをエディタに反映
+            this.sendMessage({
+                type: 'sqlFormatted',
+                sql: formatted
+            });
+
+            // セッションも更新
+            this._sessionManager.updateSqlInput(formatted);
+
+            vscode.window.showInformationMessage('SQLをフォーマットしました');
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`フォーマットエラー: ${errorMessage}`);
+        }
     }
 
     /**
@@ -444,6 +474,9 @@ export class DatabaseClientPanel {
                 break;
             case 'executeQuery':
                 this._handleExecuteQuery(message.data);
+                break;
+            case 'formatSql':
+                this._handleFormatSql(message.data);
                 break;
             case 'saveQueryResult':
                 this._handleSaveQueryResult(message.data);
@@ -1334,6 +1367,7 @@ export class DatabaseClientPanel {
         <textarea id="sqlInput" placeholder="SELECT * FROM users;" oninput="onSqlInputChange()"></textarea>
         <div class="button-group">
             <button onclick="executeQuery()">▶ 実行</button>
+            <button class="secondary" onclick="formatSql()">✨ フォーマット</button>
             <button class="secondary" onclick="clearSQL()">クリア</button>
             <button class="secondary" onclick="saveResult()">💾 結果を保存</button>
             <button class="secondary" onclick="saveCurrentQuery()">⭐ クエリを保存</button>
@@ -1670,6 +1704,9 @@ export class DatabaseClientPanel {
                 case 'loadSqlToEditor':
                     handleLoadSqlToEditor(message);
                     break;
+                case 'sqlFormatted':
+                    handleSqlFormatted(message);
+                    break;
             }
         });
 
@@ -1791,6 +1828,21 @@ export class DatabaseClientPanel {
 
         function clearSQL() {
             document.getElementById('sqlInput').value = '';
+        }
+
+        function formatSql() {
+            const sqlInput = document.getElementById('sqlInput');
+            const sql = sqlInput.value;
+            
+            if (!sql || sql.trim().length === 0) {
+                showMessage('フォーマットするSQLがありません', 'warning');
+                return;
+            }
+            
+            vscode.postMessage({
+                type: 'formatSql',
+                data: { sql }
+            });
         }
 
         function openConnectionManager() {
@@ -2207,6 +2259,19 @@ export class DatabaseClientPanel {
                 clearTimeout(sqlInputDebounceTimer);
                 sqlInputDebounceTimer = null;
             }
+        }
+
+        function handleSqlFormatted(message) {
+            const sqlInput = document.getElementById('sqlInput');
+            sqlInput.value = message.sql;
+            
+            // デバウンスタイマーをクリア（既にセッション保存済み）
+            if (sqlInputDebounceTimer) {
+                clearTimeout(sqlInputDebounceTimer);
+                sqlInputDebounceTimer = null;
+            }
+            
+            showMessage('SQLをフォーマットしました', 'success');
         }
     </script>
 </body>
