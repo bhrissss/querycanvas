@@ -16,6 +16,7 @@ A database client extension for Cursor/VS Code. Supports MySQL/PostgreSQL with A
 - **Error Handling**: Clear error messages
 - **🔒 Read-Only Mode**: Only SELECT, SHOW, DESC, EXPLAIN queries allowed (prevents accidental data modification)
 - **✨ SQL Formatter**: One-click SQL formatting for better readability
+- **🎨 Display Options**: Customize result display via SQL comments (alignment, number format, datetime format, colors)
 
 ### 📋 Automated Schema Documentation ⭐
 - Automatically extract table structures
@@ -93,6 +94,15 @@ A database client extension for Cursor/VS Code. Supports MySQL/PostgreSQL with A
 1. Enter query in SQL input area
 2. Click "▶ Execute" button
 3. Results will be displayed in the table
+
+**Tip: Use display options for better presentation:**
+```sql
+/**
+ * @column amount align=right format=number comma=true
+ * @column created_at format=datetime pattern=yyyy/MM/dd_HH:mm
+ */
+SELECT amount, created_at FROM orders LIMIT 10;
+```
 
 ### 4. Save Query Results
 

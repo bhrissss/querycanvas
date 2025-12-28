@@ -1,0 +1,117 @@
+# Cursor Rules for VS Extension 001 - Database Client
+
+## Project Overview
+This is a database client extension for VS Code/Cursor with AI-powered features.
+
+## SQL Display Options Feature
+
+This extension supports custom display formatting through SQL comments.
+
+### Syntax
+Use `/** ... */` comments at the beginning or end of SQL queries with `@column` directives:
+
+```sql
+/**
+ * @column <column_name> <option>=<value> <option>=<value> ...
+ */
+SELECT ...
+```
+
+### Supported Options
+
+#### Text Alignment
+- `align=left|center|right` - Text alignment in table cells
+
+#### Number Formatting
+- `format=number` - Format as number
+- `comma=true|false` - Add thousands separator (1,234,567)
+- `decimal=N` - Number of decimal places (e.g., decimal=2 → 123.45)
+
+#### Datetime Formatting
+- `format=datetime` - Format as datetime
+- `pattern=<format>` - Date format pattern
+  - `yyyy` = 4-digit year
+  - `MM` = 2-digit month
+  - `dd` = 2-digit day
+  - `HH` = 2-digit hour (24h)
+  - `mm` = 2-digit minute
+  - `ss` = 2-digit second
+  - Example: `pattern=yyyy/MM/dd_HH:mm:ss`
+
+#### Column Styling
+- `width=<size>` - Column width (e.g., `width=200px`)
+- `color=<color>` - Text color (e.g., `color=#ff0000`)
+- `bg=<color>` or `backgroundColor=<color>` - Background color
+- `bold=true` - Make text bold
+
+### Examples
+
+#### Financial Report
+```sql
+/**
+ * @column 店舗名 width=150px
+ * @column 売上 align=right format=number comma=true
+ * @column 前年比 align=right format=number decimal=1
+ * @column 更新日時 format=datetime pattern=yyyy/MM/dd_HH:mm
+ */
+SELECT 店舗名, 売上, 前年比, 更新日時 FROM sales_report;
+```
+
+#### Styled Table
+```sql
+/**
+ * @column ID align=right
+ * @column ステータス color=#00ff00 bold=true
+ * @column 金額 align=right format=number comma=true decimal=2
+ * @column 作成日時 format=datetime pattern=yyyy/MM/dd
+ */
+SELECT ID, ステータス, 金額, 作成日時 FROM orders;
+```
+
+### Implementation Details
+- Parser: `src/sqlCommentParser.ts`
+- Options are extracted in `DatabaseClientPanel._handleExecuteQuery()`
+- Formatting applied in Webview's `handleQueryResult()` function
+- Number formatting uses `formatValue()` helper
+- Datetime formatting uses `formatDateTime()` helper
+- Styling uses `generateColumnStyle()` helper
+
+## Coding Guidelines
+
+### TypeScript
+- Use strict typing
+- Prefer interfaces over types for extensibility
+- Document public APIs with JSDoc comments
+
+### SQL Validation
+- Only read-only queries allowed (SELECT, SHOW, DESC, EXPLAIN)
+- INSERT, UPDATE, DELETE are blocked by `SqlValidator`
+
+### Session Persistence
+- SQL input auto-saved to `.vscode/db-client-session.json`
+- File watcher syncs external changes (Cursor edits)
+- Query results auto-saved to `query-results/` directory
+
+### Internationalization
+- English is default language
+- Japanese is supported
+- Translation files: `src/i18n/en.json`, `src/i18n/ja.json`
+- Schema documents adapt to VS Code language setting
+
+## File Structure
+- `src/databaseClientPanel.ts` - Main Webview panel
+- `src/database/` - Database connection layer
+- `src/i18n/` - Translation files
+- `src/sqlCommentParser.ts` - Display options parser
+- `src/sqlFormatter.ts` - SQL beautifier
+- `src/sqlValidator.ts` - SQL security validator
+
+## When Helping with SQL Queries
+
+1. Always suggest using display options for better presentation
+2. Use `align=right` for numeric columns
+3. Use `format=number comma=true` for currency/large numbers
+4. Use `format=datetime pattern=...` for timestamps
+5. Keep column names in original language (often Japanese)
+6. Remember this is a read-only client (no INSERT/UPDATE/DELETE)
+
