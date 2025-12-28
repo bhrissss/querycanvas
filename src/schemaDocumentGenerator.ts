@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IDBConnection, TableInfo, ColumnInfo } from './database/types';
+import { I18nManager } from './i18nManager';
 
 /**
  * スキーマをMarkdownドキュメントとして出力するクラス
@@ -10,16 +11,18 @@ export class SchemaDocumentGenerator {
     private readonly workspaceRoot: string;
     private readonly schemaDir: string;
     private readonly tablesDir: string;
+    private readonly i18n: I18nManager;
 
     constructor() {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders || workspaceFolders.length === 0) {
-            throw new Error('ワークスペースが開かれていません');
+            throw new Error('Workspace not opened');
         }
 
         this.workspaceRoot = workspaceFolders[0].uri.fsPath;
         this.schemaDir = path.join(this.workspaceRoot, 'db-schema');
         this.tablesDir = path.join(this.schemaDir, 'tables');
+        this.i18n = new I18nManager(vscode.env.language);
 
         // ディレクトリを作成
         this.ensureDirectories();
@@ -101,28 +104,29 @@ export class SchemaDocumentGenerator {
         try {
             const content = fs.readFileSync(filePath, 'utf-8');
             
-            // テーブル論理名を抽出
-            const logicalNameMatch = content.match(/\*\*論理名\*\*: (.+)/);
+            // テーブル論理名を抽出（日本語・英語両対応）
+            const logicalNameMatch = content.match(/\*\*(?:論理名|Logical name)\*\*: (.+)/);
             if (logicalNameMatch) {
                 comments.set('_table_logical_name', logicalNameMatch[1].trim());
             }
 
-            // テーブル説明を抽出
-            const descMatch = content.match(/## テーブル説明\n\n([\s\S]*?)\n\n##/);
-            if (descMatch && descMatch[1].trim() !== '（Cursorと会話しながらここに説明を追記してください）') {
+            // テーブル説明を抽出（日本語・英語両対応）
+            const descMatch = content.match(/## (?:テーブル説明|Table Description)\n\n([\s\S]*?)\n\n##/);
+            if (descMatch && descMatch[1].trim() && 
+                !descMatch[1].includes('Cursor') && !descMatch[1].includes('会話')) {
                 comments.set('_table_description', descMatch[1].trim());
             }
 
-            // カラム詳細を抽出
-            const detailsMatch = content.match(/## カラム詳細\n\n([\s\S]*?)(?:\n\n##|$)/);
+            // カラム詳細を抽出（日本語・英語両対応）
+            const detailsMatch = content.match(/## (?:カラム詳細|Column Details)\n\n([\s\S]*?)(?:\n\n##|$)/);
             if (detailsMatch) {
                 const columnBlocks = detailsMatch[1].split(/\n- `(.+?)`\n/);
                 for (let i = 1; i < columnBlocks.length; i += 2) {
                     const columnName = columnBlocks[i];
                     const details = columnBlocks[i + 1];
                     
-                    const logicalMatch = details.match(/\*\*論理名\*\*: (.+)/);
-                    const descMatch = details.match(/\*\*説明\*\*: ([\s\S]*?)(?:\n- |$)/);
+                    const logicalMatch = details.match(/\*\*(?:論理名|Logical name)\*\*: (.+)/);
+                    const descMatch = details.match(/\*\*(?:説明|Description)\*\*: ([\s\S]*?)(?:\n- |$)/);
                     
                     if (logicalMatch || descMatch) {
                         comments.set(columnName, {
@@ -133,9 +137,10 @@ export class SchemaDocumentGenerator {
                 }
             }
 
-            // 備考を抽出
-            const notesMatch = content.match(/## 備考\n\n([\s\S]*?)$/);
-            if (notesMatch && notesMatch[1].trim() !== '（Cursorと会話しながらここに備考を追記してください）') {
+            // 備考を抽出（日本語・英語両対応）
+            const notesMatch = content.match(/## (?:備考|Notes)\n\n([\s\S]*?)$/);
+            if (notesMatch && notesMatch[1].trim() && 
+                !notesMatch[1].includes('Cursor') && !notesMatch[1].includes('会話')) {
                 comments.set('_notes', notesMatch[1].trim());
             }
 
@@ -157,23 +162,24 @@ export class SchemaDocumentGenerator {
         existingComments: Map<string, any>
     ): string {
         const now = new Date().toISOString().split('T')[0];
+        const t = this.i18n.t.bind(this.i18n);
         
-        let md = `# ${tableName} テーブル\n\n`;
-        md += `**物理名**: ${tableName}\n`;
+        let md = `# ${tableName} Table\n\n`;
+        md += `**${t('schema.template.physicalName')}**: ${tableName}\n`;
         
         // 論理名
-        const logicalName = existingComments.get('_table_logical_name') || '（Cursorと会話しながらここに論理名を追記してください）';
-        md += `**論理名**: ${logicalName}\n`;
-        md += `**最終更新**: ${now}\n\n`;
+        const logicalName = existingComments.get('_table_logical_name') || t('schema.template.logicalNamePrompt');
+        md += `**${t('schema.template.logicalName')}**: ${logicalName}\n`;
+        md += `**${t('schema.template.lastUpdated')}**: ${now}\n\n`;
 
         // テーブル説明
-        md += `## テーブル説明\n\n`;
-        const tableDesc = existingComments.get('_table_description') || '（Cursorと会話しながらここに説明を追記してください）';
+        md += `## ${t('schema.template.tableDescription')}\n\n`;
+        const tableDesc = existingComments.get('_table_description') || t('schema.template.descriptionPrompt');
         md += `${tableDesc}\n\n`;
 
         // カラム定義
-        md += `## カラム定義\n\n`;
-        md += `| カラム名 | 型 | NULL | キー | デフォルト | 備考 |\n`;
+        md += `## ${t('schema.template.columnDefinitions')}\n\n`;
+        md += `| ${t('schema.template.column')} | ${t('schema.template.type')} | ${t('schema.template.null')} | ${t('schema.template.key')} | ${t('schema.template.default')} | ${t('schema.template.remarks')} |\n`;
         md += `|---------|-----|------|------|-----------|------|\n`;
         
         for (const col of columns) {
@@ -186,8 +192,8 @@ export class SchemaDocumentGenerator {
         md += `\n`;
 
         // カラム詳細（論理名と説明）
-        md += `## カラム詳細\n\n`;
-        md += `（Cursorと会話しながら、各カラムの論理名と説明を追記してください）\n\n`;
+        md += `## ${t('schema.template.columnDetails')}\n\n`;
+        md += `${t('schema.template.columnDetailsPrompt')}\n\n`;
         
         for (const col of columns) {
             const columnInfo = existingComments.get(col.name);
@@ -195,27 +201,28 @@ export class SchemaDocumentGenerator {
             const description = columnInfo?.description || '';
             
             md += `- \`${col.name}\`\n`;
-            md += `  - **論理名**: ${logicalName}\n`;
-            md += `  - **説明**: ${description}\n`;
+            md += `  - **${t('schema.template.logicalName')}**: ${logicalName}\n`;
+            md += `  - **Description**: ${description}\n`;
         }
         md += `\n`;
 
         // 記入例セクション
-        md += `### 記入例\n\n`;
+        md += `### ${t('schema.template.example')}\n\n`;
+        md += `${t('schema.template.exampleDescription')}\n\n`;
         md += `\`\`\`markdown\n`;
         md += `- \`del_kbn\`\n`;
-        md += `  - **論理名**: 削除フラグ\n`;
-        md += `  - **説明**: 0=有効, 1=削除済。論理削除に使用\n`;
+        md += `  - **${t('schema.template.logicalName')}**: Delete Flag\n`;
+        md += `  - **Description**: ${t('schema.template.exampleDelKbn')}\n`;
         md += `- \`user_id\`\n`;
-        md += `  - **論理名**: ユーザーID\n`;
-        md += `  - **説明**: userテーブルのidを参照する外部キー\n`;
+        md += `  - **${t('schema.template.logicalName')}**: User ID\n`;
+        md += `  - **Description**: ${t('schema.template.exampleUserId')}\n`;
         md += `- \`status\`\n`;
-        md += `  - **論理名**: ステータス\n`;
-        md += `  - **説明**: 0=無効, 1=有効, 2=保留中\n`;
+        md += `  - **${t('schema.template.logicalName')}**: Status\n`;
+        md += `  - **Description**: ${t('schema.template.exampleStatus')}\n`;
         md += `\`\`\`\n\n`;
 
         // インデックス情報
-        md += `## インデックス\n\n`;
+        md += `## ${t('schema.template.indexes')}\n\n`;
         if (indexes.length > 0) {
             const indexMap = new Map<string, string[]>();
             for (const idx of indexes) {
@@ -231,12 +238,12 @@ export class SchemaDocumentGenerator {
                 md += `- **${name}**: ${cols.join(', ')}\n`;
             }
         } else {
-            md += `（インデックスなし）\n`;
+            md += `(No indexes)\n`;
         }
         md += `\n`;
 
         // 外部キー制約
-        md += `## 外部キー制約\n\n`;
+        md += `## ${t('schema.template.foreignKeys')}\n\n`;
         if (foreignKeys.length > 0) {
             for (const fk of foreignKeys) {
                 const constraintName = fk.CONSTRAINT_NAME || fk.constraint_name;
@@ -246,13 +253,13 @@ export class SchemaDocumentGenerator {
                 md += `- **${constraintName}**: \`${column}\` → \`${refTable}.${refColumn}\`\n`;
             }
         } else {
-            md += `（外部キー制約なし）\n`;
+            md += `(No foreign key constraints)\n`;
         }
         md += `\n`;
 
         // 備考
-        md += `## 備考\n\n`;
-        const notes = existingComments.get('_notes') || '（Cursorと会話しながらここに備考を追記してください）';
+        md += `## ${t('schema.template.notes')}\n\n`;
+        const notes = existingComments.get('_notes') || t('schema.template.notesPrompt');
         md += `${notes}\n`;
 
         return md;

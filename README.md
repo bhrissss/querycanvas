@@ -1,32 +1,51 @@
-# VS Extension 001 - Cursor連携型データベースクライアント
+# VS Extension 001 - Cursor-Integrated Database Client
 
-Cursor/VS Code用のデータベースクライアント拡張機能です。MySQL/PostgreSQLに対応し、Cursor AIとの連携を前提とした設計で、データベーススキーマのドキュメント化とデータ分析を支援します。
+A database client extension for Cursor/VS Code. Supports MySQL/PostgreSQL with AI-powered schema documentation and query management features designed for seamless integration with Cursor AI.
 
-## 主な機能
+**日本語** | [English](#english-documentation)
 
-### 🗄️ データベース接続
-- **複数接続管理**: 開発・ステージング・本番など、複数のデータベース接続を管理
-- **MySQL対応**: MySQL 5.7+, 8.0+ をサポート
-- **PostgreSQL対応**: PostgreSQL 12+ をサポート
-- **セキュアな認証**: パスワードはVS Code Secret Storageに安全に保存
+## 主な機能 / Main Features
 
-### 📊 SQLクエリ実行
-- **直感的なUI**: SQL入力エリアと結果表示テーブル
-- **実行時間計測**: クエリのパフォーマンスを確認
-- **エラーハンドリング**: わかりやすいエラーメッセージ
+### 🗄️ データベース接続 / Database Connection
+- **複数接続管理 / Multiple Connections**: 開発・ステージング・本番など、複数のデータベース接続を管理 / Manage connections for development, staging, production
+- **MySQL対応 / MySQL Support**: MySQL 5.7+, 8.0+ をサポート / Supports MySQL 5.7+, 8.0+
+- **PostgreSQL対応 / PostgreSQL Support**: PostgreSQL 12+ をサポート / Supports PostgreSQL 12+
+- **セキュアな認証 / Secure Authentication**: パスワードはVS Code Secret Storageに安全に保存 / Passwords securely stored in VS Code Secret Storage
 
-### 📋 テーブル定義の自動ドキュメント化 ⭐
-- テーブル構造を自動取得
-- Markdown形式でドキュメント生成（`db-schema/tables/`）
-- 論理名・説明をCursor AIと会話しながら追記可能
-- 再取得時に追記した情報を保持
-- 外部キー、インデックス情報も自動抽出
+### 📊 SQLクエリ実行 / SQL Query Execution
+- **直感的なUI / Intuitive UI**: SQL入力エリアと結果表示テーブル / SQL input area and result display table
+- **実行時間計測 / Performance Measurement**: クエリのパフォーマンスを確認 / Monitor query performance
+- **エラーハンドリング / Error Handling**: わかりやすいエラーメッセージ / Clear error messages
 
-### 💾 クエリ結果の保存 ⭐
-- **TSV/JSON形式**でエクスポート
-- 名前とコメント付きで管理（`query-results/`）
-- メタデータ（実行SQL、日時、行数）を自動記録
-- 保存したデータをCursor AIで分析可能
+### 📋 テーブル定義の自動ドキュメント化 / Automated Schema Documentation ⭐
+- テーブル構造を自動取得 / Automatically extract table structures
+- Markdown形式でドキュメント生成（`db-schema/tables/`）/ Generate documentation in Markdown format
+- 論理名・説明をCursor AIと会話しながら追記可能 / Add logical names and descriptions with Cursor AI
+- 再取得時に追記した情報を保持 / Preserves your additions during re-extraction
+- 外部キー、インデックス情報も自動抽出 / Auto-extracts foreign keys and indexes
+
+### 💾 クエリ結果の保存 / Query Result Saving ⭐
+- **TSV/JSON形式**でエクスポート / Export in TSV/JSON format
+- 名前とコメント付きで管理（`query-results/`）/ Manage with names and comments
+- メタデータ（実行SQL、日時、行数）を自動記録 / Automatically records metadata
+- 保存したデータをCursor AIで分析可能 / Analyze saved data with Cursor AI
+
+### 💾 保存済みクエリライブラリ / Saved Query Library ⭐
+- よく使うクエリを名前付きで保存 / Save frequently-used queries with names
+- タグで分類・検索 / Categorize and search with tags
+- クエリ結果をキャッシュ / Cache query results
+- 次回は瞬時に表示（データベース接続不要）/ Instant display next time (no database connection needed)
+
+### 🔄 セッション永続化 / Session Persistence ⭐
+- SQL入力内容を自動保存 / Auto-save SQL input
+- パネルを閉じても作業を継続可能 / Continue work even after closing panel
+- Cursorがセッションファイルを編集可能 / Cursor can edit session file
+- リアルタイムSQL同期（Cursor ↔ UI）/ Real-time SQL sync (Cursor ↔ UI)
+
+### 🌍 多言語対応 / Multilingual Support
+- **英語 / English** (Default)
+- **日本語 / Japanese**
+- VS Codeの言語設定に自動対応 / Automatically adapts to VS Code language settings
 
 ## スクリーンショット
 
