@@ -1007,10 +1007,36 @@ export class DatabaseClientPanel {
 
         .toolbar {
             display: flex;
+            align-items: center;
             gap: 10px;
             margin-bottom: 20px;
             padding-bottom: 10px;
             border-bottom: 1px solid var(--vscode-panel-border);
+        }
+
+        .toolbar-spacer {
+            flex: 1;
+        }
+
+        .font-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        .font-controls label {
+            color: var(--vscode-foreground);
+            opacity: 0.8;
+        }
+
+        .font-controls select {
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 12px;
         }
 
         .footer {
@@ -1374,6 +1400,35 @@ export class DatabaseClientPanel {
     <!-- 上部：機能ボタン -->
     <div class="toolbar">
         <button onclick="openSavedQueries()">💾 保存済みクエリ</button>
+        
+        <div class="toolbar-spacer"></div>
+        
+        <div class="font-controls">
+            <label for="fontFamily">Font:</label>
+            <select id="fontFamily" onchange="changeFontFamily(this.value)">
+                <option value="'Consolas', 'Courier New', monospace">Consolas</option>
+                <option value="'Monaco', monospace">Monaco</option>
+                <option value="'Menlo', monospace">Menlo</option>
+                <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                <option value="'Fira Code', monospace">Fira Code</option>
+            </select>
+            
+            <label for="fontSize" style="margin-left: 10px;">Size:</label>
+            <select id="fontSize" onchange="changeFontSize(this.value)">
+                <option value="10">10px</option>
+                <option value="11">11px</option>
+                <option value="12">12px</option>
+                <option value="13">13px</option>
+                <option value="14" selected>14px</option>
+                <option value="15">15px</option>
+                <option value="16">16px</option>
+                <option value="18">18px</option>
+                <option value="20">20px</option>
+                <option value="22">22px</option>
+                <option value="24">24px</option>
+            </select>
+        </div>
     </div>
 
     <div class="section sql-editor-section" id="sqlEditorSection">
@@ -1615,6 +1670,55 @@ export class DatabaseClientPanel {
         let currentProfileId = null;
         let isConnected = false;
         let sqlInputDebounceTimer = null;
+
+        // リサイザーの初期化
+        // フォント設定の初期化と復元
+        (function initFontSettings() {
+            const sqlInput = document.getElementById('sqlInput');
+            const resultTable = document.getElementById('resultTable');
+            const fontFamilySelect = document.getElementById('fontFamily');
+            const fontSizeSelect = document.getElementById('fontSize');
+
+            // 保存された設定を復元
+            const savedFontFamily = localStorage.getItem('dbClientFontFamily');
+            const savedFontSize = localStorage.getItem('dbClientFontSize');
+
+            if (savedFontFamily) {
+                fontFamilySelect.value = savedFontFamily;
+                applyFontFamily(savedFontFamily);
+            } else {
+                // デフォルト: VS Codeのフォント設定を使用
+                const defaultFont = "'Consolas', 'Courier New', monospace";
+                fontFamilySelect.value = defaultFont;
+                applyFontFamily(defaultFont);
+            }
+
+            if (savedFontSize) {
+                fontSizeSelect.value = savedFontSize;
+                applyFontSize(savedFontSize);
+            }
+
+            function applyFontFamily(fontFamily) {
+                sqlInput.style.fontFamily = fontFamily;
+                resultTable.style.fontFamily = fontFamily;
+            }
+
+            function applyFontSize(fontSize) {
+                sqlInput.style.fontSize = fontSize + 'px';
+                resultTable.style.fontSize = fontSize + 'px';
+            }
+
+            // グローバル関数として公開
+            window.changeFontFamily = function(fontFamily) {
+                localStorage.setItem('dbClientFontFamily', fontFamily);
+                applyFontFamily(fontFamily);
+            };
+
+            window.changeFontSize = function(fontSize) {
+                localStorage.setItem('dbClientFontSize', fontSize);
+                applyFontSize(fontSize);
+            };
+        })();
 
         // リサイザーの初期化
         (function initResizer() {
