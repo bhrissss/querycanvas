@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { DatabaseClientPanel } from './databaseClientPanel';
 import { ConnectionProfileManager } from './database';
+import { CursorRulesManager } from './cursorRulesManager';
 
 /**
  * 拡張機能がアクティベートされた時に呼ばれます
@@ -28,7 +29,13 @@ export function activate(context: vscode.ExtensionContext) {
         DatabaseClientPanel.createOrShow(context.extensionUri, profileManager);
     });
 
+    // Setup Cursor Rules コマンドを登録
+    const setupCursorRulesCommand = vscode.commands.registerCommand('querycanvas.setupCursorRules', async () => {
+        await CursorRulesManager.addQueryCanvasRules();
+    });
+
     context.subscriptions.push(openDatabaseClientCommand);
+    context.subscriptions.push(setupCursorRulesCommand);
 }
 
 /**

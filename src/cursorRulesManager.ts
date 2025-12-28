@@ -1,0 +1,307 @@
+import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * Cursor AI Rules Manager
+ * .cursorrules ファイルへのQueryCanvasルール追加を管理
+ */
+export class CursorRulesManager {
+    private static readonly SECTION_START = '# ========================================';
+    private static readonly SECTION_TITLE = '# QueryCanvas - Database Client Rules';
+    private static readonly SECTION_END = '# ========================================';
+
+    /**
+     * .cursorrules にQueryCanvasのルールを追加
+     */
+    public static async addQueryCanvasRules(): Promise<void> {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders) {
+            vscode.window.showErrorMessage('ワークスペースが開かれていません');
+            return;
+        }
+
+        const rootPath = workspaceFolders[0].uri.fsPath;
+        const cursorRulesPath = path.join(rootPath, '.cursorrules');
+
+        try {
+            // 既存の .cursorrules を読み込む
+            let content = '';
+            let fileExists = false;
+
+            if (fs.existsSync(cursorRulesPath)) {
+                content = fs.readFileSync(cursorRulesPath, 'utf8');
+                fileExists = true;
+
+                // 既にQueryCanvasのルールがある場合
+                if (this.hasQueryCanvasSection(content)) {
+                    const choice = await vscode.window.showWarningMessage(
+                        'QueryCanvasのルールは既に存在します。更新しますか？',
+                        'はい', 'いいえ'
+                    );
+                    if (choice !== 'はい') {
+                        return;
+                    }
+
+                    // 既存のQueryCanvasセクションを削除
+                    content = this.removeQueryCanvasSection(content);
+                }
+            }
+
+            // テンプレートを生成
+            const template = this.getTemplate();
+
+            // ルールを追加
+            if (fileExists && content.trim().length > 0) {
+                // 既存のルールの最後に追加
+                content = content.trimEnd() + '\n\n' + template;
+            } else {
+                // 新規作成
+                content = template;
+            }
+
+            // ファイルに書き込み
+            fs.writeFileSync(cursorRulesPath, content, 'utf8');
+
+            // 成功メッセージ
+            const choice = await vscode.window.showInformationMessage(
+                '✅ .cursorrules にQueryCanvasのルールを追加しました！\n\nCursor AI に試してください：\n"@Codebase PowerPointに貼り付けられるクエリを作って"',
+                'ファイルを開く', '閉じる'
+            );
+
+            if (choice === 'ファイルを開く') {
+                const doc = await vscode.workspace.openTextDocument(cursorRulesPath);
+                await vscode.window.showTextDocument(doc);
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(`エラーが発生しました: ${error}`);
+        }
+    }
+
+    /**
+     * QueryCanvasセクションが存在するか確認
+     */
+    private static hasQueryCanvasSection(content: string): boolean {
+        return content.includes(this.SECTION_TITLE);
+    }
+
+    /**
+     * QueryCanvasセクションを削除
+     */
+    private static removeQueryCanvasSection(content: string): string {
+        const lines = content.split('\n');
+        const result: string[] = [];
+        let inQueryCanvasSection = false;
+        let sectionStartIndex = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // セクションの開始を検出
+            if (line.includes(this.SECTION_TITLE)) {
+                inQueryCanvasSection = true;
+                sectionStartIndex = i;
+                // セクションの前の空行を削除（最大2行）
+                while (result.length > 0 && result[result.length - 1].trim() === '') {
+                    result.pop();
+                }
+                continue;
+            }
+
+            // セクション内の場合はスキップ
+            if (inQueryCanvasSection) {
+                // セクションの終わりを検出（次のセクションまたはファイル終端）
+                if (line.startsWith('# ===') && i > sectionStartIndex + 2) {
+                    // 次のセクションの開始なので、この行は残す
+                    inQueryCanvasSection = false;
+                    result.push(line);
+                }
+                continue;
+            }
+
+            result.push(line);
+        }
+
+        return result.join('\n');
+    }
+
+    /**
+     * テンプレートを生成
+     */
+    private static getTemplate(): string {
+        const version = this.getExtensionVersion();
+
+        return `${this.SECTION_START}
+${this.SECTION_TITLE}
+# Auto-generated by QueryCanvas v${version}
+${this.SECTION_END}
+
+## QueryCanvas Integration
+
+This project uses QueryCanvas for database access and SQL query management.
+
+### Session File
+
+**Location:** \`.vscode/querycanvas-session.json\`
+
+Contains:
+- Current SQL query in the editor
+- Active database connection ID
+- You can edit this file directly to modify SQL
+
+**Example prompts for Cursor AI:**
+\`\`\`
+Edit .vscode/querycanvas-session.json to add a WHERE clause filtering by date
+\`\`\`
+
+\`\`\`
+Modify the SQL in the session file to add display options for PowerPoint
+\`\`\`
+
+### SQL Display Options
+
+Format query results using \`/** @column ... */\` comments:
+
+\`\`\`sql
+/**
+ * @column amount type=int align=right format=number comma=true if<0:color=red
+ * @column date format=datetime pattern=yyyy/MM/dd
+ */
+SELECT amount, date FROM sales;
+\`\`\`
+
+**Common options:**
+- \`align=right\` - Right align (recommended for numbers)
+- \`format=number comma=true\` - Add thousand separators (1,234,567)
+- \`decimal=2\` - 2 decimal places (e.g., 123.45)
+- \`format=datetime pattern=yyyy/MM/dd\` - Date formatting
+- \`if<0:color=red\` - Conditional styling (negatives in red)
+- \`if>=100:color=green,bold=true\` - Multiple styles
+
+**Example prompts:**
+\`\`\`
+Add display options to format the 'price' column with commas and 2 decimal places
+\`\`\`
+
+\`\`\`
+Create a sales report query with conditional styling: negative values red, values over 1M green
+\`\`\`
+
+### PowerPoint/Excel/Word Copy
+
+After executing queries, two copy buttons appear:
+
+1. **📋 TSVコピー** (Tab-Separated Values)
+   - Simple format, works everywhere
+   - No styling preserved
+   - Good for basic data transfer
+
+2. **📋 HTMLコピー** (Rich HTML with styles)
+   - Preserves colors, bold, formatting
+   - Conditional styling maintained
+   - Perfect for presentations
+
+**Example workflow:**
+\`\`\`
+Create a sales dashboard query with:
+- Amount: right-aligned, comma-separated, negatives in red
+- Achievement rate: 1 decimal, >=100% in green bold
+- Date: yyyy/MM/dd format
+Then copy as HTML for PowerPoint
+\`\`\`
+
+**Example prompts:**
+\`\`\`
+Generate a presentation-ready query for monthly sales. Use display options to make it look good in PowerPoint.
+\`\`\`
+
+### Database Schema
+
+**Location:** \`querycanvas-schema/tables/\`
+
+Auto-generated Markdown files for each table. You can add logical names and descriptions.
+
+**Example prompts:**
+\`\`\`
+Based on the table definition in querycanvas-schema/tables/orders.md, write a query to analyze sales trends
+\`\`\`
+
+\`\`\`
+Using the schema in querycanvas-schema/, create a join query between users and orders tables
+\`\`\`
+
+### Query Results
+
+**Location:** \`querycanvas-results/\`
+
+Saved query results in TSV/JSON format with metadata.
+
+### Best Practices for QueryCanvas
+
+1. **Always use display options for presentation-ready results**
+   - Right-align numbers
+   - Add commas for large numbers
+   - Use conditional styling for highlights
+
+2. **Leverage conditional styling**
+   - Red for negatives: \`if<0:color=red\`
+   - Green for success: \`if>=100:color=green,bold=true\`
+   - Orange for warnings: \`if<=10:color=orange\`
+
+3. **Prefer HTML Copy for PowerPoint**
+   - Preserves all styling and formatting
+   - Conditional colors maintained
+   - Professional-looking tables
+
+4. **Keep queries read-only**
+   - QueryCanvas only allows SELECT, SHOW, DESC, EXPLAIN
+   - INSERT, UPDATE, DELETE are blocked for safety
+
+5. **Use Cursor AI to generate SQL**
+   - Edit session file directly
+   - Add display options automatically
+   - Optimize for presentation
+
+### Common Tasks
+
+**Generate formatted query:**
+\`\`\`
+Write a top 10 customers query with display options optimized for PowerPoint
+\`\`\`
+
+**Add styling to existing query:**
+\`\`\`
+Add conditional styling to the session file: amounts <0 in red, >1M in green
+\`\`\`
+
+**Create presentation:**
+\`\`\`
+Generate a sales report query with:
+- Store name: 150px width
+- Revenue: right-aligned, comma-separated, conditional colors
+- Growth rate: 1 decimal, percentage-style
+\`\`\`
+
+### Documentation References
+
+- Full guide: See project README.md
+- Display options: See DISPLAY-OPTIONS-QUICK-GUIDE.md
+- PowerPoint copy: See docs/POWERPOINT-COPY-GUIDE.md
+
+---
+`;
+    }
+
+    /**
+     * 拡張機能のバージョンを取得
+     */
+    private static getExtensionVersion(): string {
+        try {
+            const extension = vscode.extensions.getExtension('okuyamashin.querycanvas');
+            return extension?.packageJSON.version || '0.1.2';
+        } catch {
+            return '0.1.2';
+        }
+    }
+}
+

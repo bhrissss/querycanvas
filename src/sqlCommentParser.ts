@@ -107,10 +107,12 @@ export class SqlCommentParser {
         };
 
         // key=value 形式のオプションと条件付きスタイルを抽出
-        const optionMatches = optionsStr.matchAll(/(\w+)=([^\s]+)/g);
+        // ダブルクォートで囲まれた値もサポート: key="value with spaces" または key=value
+        const optionMatches = optionsStr.matchAll(/(\w+)=("([^"]*)"|'([^']*)'|([^\s]+))/g);
         for (const optionMatch of optionMatches) {
             const key = optionMatch[1];
-            const value = optionMatch[2];
+            // ダブルクォート、シングルクォート、または通常の値
+            const value = optionMatch[3] || optionMatch[4] || optionMatch[5];
 
             switch (key) {
                 case 'type':
@@ -135,8 +137,8 @@ export class SqlCommentParser {
                     columnOption.decimal = parseInt(value, 10);
                     break;
                 case 'pattern':
-                    // pattern="yyyy/MM/dd HH:mm:ss" のようにクォートで囲まれている可能性
-                    columnOption.pattern = value.replace(/["']/g, '');
+                    // クォートで囲まれている場合はすでに除去されている
+                    columnOption.pattern = value;
                     break;
                 case 'width':
                     columnOption.width = value;

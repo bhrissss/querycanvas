@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **📝 Setup Cursor AI Rules** 🆕: One-click setup for Cursor AI integration
+  - Button in Database Client panel: "📝 Cursor AI設定"
+  - Command: "QueryCanvas: Setup Cursor AI Rules"
+  - Automatically adds QueryCanvas usage guide to `.cursorrules`
+  - Includes display options syntax, PowerPoint copy workflow
+  - Smart update: detects and replaces existing QueryCanvas sections
+  - Opens .cursorrules file after setup for review
+
+### Fixed
+- **Datetime pattern with spaces** 🐛: Now supports patterns containing spaces
+  - Use double quotes: `pattern="yyyy-MM-dd HH:mm:ss"`
+  - Use single quotes: `pattern='yyyy-MM-dd HH:mm:ss'`
+  - Previous workaround with underscore still works: `pattern=yyyy-MM-dd_HH:mm:ss`
+  - Updated parser to handle quoted values in all options
+
+## [0.1.2] - 2025-12-28
+
+### Added
+- **📋 Clipboard Copy Feature** 🆕: Copy query results to PowerPoint/Excel/Word
+  - **TSV Copy**: Tab-separated format for universal compatibility
+  - **HTML Copy**: Rich HTML with styling preserved (colors, bold, number formatting)
+  - Conditional styling preserved in HTML copy (red negatives, bold thresholds, etc.)
+  - Copy buttons appear automatically after query execution
+  - Comprehensive guide: `docs/POWERPOINT-COPY-GUIDE.md`
 - **Conditional Column Styling** 🆕: Dynamic cell styling based on values
   - Support for type specification (`type=int`, `type=float`, `type=decimal`, `type=text`)
   - Conditional operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
@@ -23,7 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Updated `.cursorrules` with conditional styling syntax for Cursor AI integration
-- Enhanced `README.md` with conditional styling feature description
+- Enhanced `README.md` with clipboard copy and conditional styling features
+- Result container now includes section header with copy buttons
+
+### Fixed
+- Improved HTML clipboard compatibility across different applications
+- Better handling of null/undefined values in clipboard output
 
 ## [0.1.1] - 2025-12-28
 

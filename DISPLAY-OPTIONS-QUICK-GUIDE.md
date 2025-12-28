@@ -41,6 +41,9 @@ SELECT カラム名, ... FROM テーブル名;
 
 -- 日時: 2025-12-28T14:30:00 → 2025/12/28 14:30
 @column 更新日時 format=datetime pattern=yyyy/MM/dd_HH:mm
+
+-- スペース含む場合はダブルクォートで囲む: 2025-12-28T14:30:00 → 2025-12-28 14:30:00
+@column 作成日時 format=datetime pattern="yyyy-MM-dd HH:mm:ss"
 ```
 
 ### 4. 色とスタイル

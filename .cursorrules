@@ -88,6 +88,7 @@ SELECT ...
   - `mm` = 2-digit minute
   - `ss` = 2-digit second
   - Example: `pattern=yyyy/MM/dd_HH:mm:ss`
+  - **Note:** Use double quotes if pattern contains spaces: `pattern="yyyy-MM-dd HH:mm:ss"`
 
 #### Column Styling
 - `width=<size>` - Column width (e.g., `width=200px`)
@@ -177,6 +178,81 @@ SELECT 売上, 在庫数, 達成率 FROM performance_data;
 - `src/sqlFormatter.ts` - SQL beautifier
 - `src/sqlValidator.ts` - SQL security validator
 
+## 📋 Clipboard Copy to PowerPoint/Excel/Word Feature 🆕
+
+After executing a query, users can copy results to clipboard in two formats:
+
+### TSV Copy (Tab-Separated Values)
+- **Button:** "📋 TSVコピー"
+- **Format:** Plain text with tab separators
+- **Use case:** Simple data transfer to any application
+- **Preserves:** Data only (no styling)
+- **Compatible with:** PowerPoint, Excel, Word, Google Sheets, etc.
+
+### HTML Copy (Rich Format)
+- **Button:** "📋 HTMLコピー"
+- **Format:** HTML table with inline styles
+- **Use case:** Rich presentations and reports
+- **Preserves:** 
+  - Colors, bold, and other text styles
+  - Conditional styling (red negatives, green positives, etc.)
+  - Number formatting (commas, decimal places)
+  - Alignment and column widths
+- **Compatible with:** PowerPoint, Excel, Word, Outlook
+
+### When to Recommend
+
+**Recommend HTML Copy when:**
+- User needs styled tables for presentations
+- Query uses conditional styling (`if<0:color=red`)
+- Query uses number/datetime formatting
+- User mentions PowerPoint, Excel, or creating reports
+
+**Recommend TSV Copy when:**
+- User needs simple data transfer
+- Compatibility is a concern
+- No styling is needed
+
+### Example Workflow for Presentations
+
+```sql
+/**
+ * @column 売上 type=int align=right format=number comma=true if<0:color=red if>2000000:color=green,bold=true
+ * @column 達成率 type=float align=right format=number decimal=1 if<80:color=red if>=100:color=green,bold=true
+ * @column 更新日時 format=datetime pattern=yyyy/MM/dd
+ */
+SELECT 店舗名, 売上, 達成率, 更新日時
+FROM sales_dashboard
+ORDER BY 売上 DESC
+LIMIT 10;
+```
+
+→ Execute → Click "📋 HTMLコピー" → Paste in PowerPoint → Beautiful styled table!
+
+### User Prompts You Might See
+
+- "PowerPointに貼り付けられる形式でコピーしたい"
+  → Suggest HTML Copy for styled output
+  
+- "このクエリ結果をExcelで使いたい"
+  → Suggest TSV Copy for data, HTML Copy for styled reports
+  
+- "プレゼン資料を作りたい"
+  → Suggest adding display options + conditional styling + HTML Copy
+  
+- "資料用にデータをコピーしたい"
+  → Ask if styling is needed, then recommend HTML or TSV Copy
+
+### Implementation Details
+- TSV copy: `copyTableAsTSV()` function in `databaseClientPanel.ts`
+- HTML copy: `copyTableAsHTML()` function in `databaseClientPanel.ts`
+- Buttons appear automatically after query execution
+- Uses Clipboard API: `navigator.clipboard.write()` for HTML, `writeText()` for TSV
+
+### Documentation
+- User guide: `docs/POWERPOINT-COPY-GUIDE.md`
+- Testing guide: `docs/TESTING-POWERPOINT-COPY.md`
+
 ## When Helping with SQL Queries
 
 1. Always suggest using display options for better presentation
@@ -187,4 +263,6 @@ SELECT 売上, 在庫数, 達成率 FROM performance_data;
 6. Specify `type=int|float|decimal` when using conditional styling
 7. Keep column names in original language (often Japanese)
 8. Remember this is a read-only client (no INSERT/UPDATE/DELETE)
+9. **🆕 Mention clipboard copy feature when user needs to create reports or presentations**
+10. **🆕 Suggest HTML Copy to preserve styling in PowerPoint/Excel**
 

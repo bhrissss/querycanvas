@@ -240,6 +240,19 @@ export class DatabaseClientPanel {
     }
 
     /**
+     * Cursor AI Rules をセットアップ
+     */
+    private async _handleSetupCursorRules() {
+        try {
+            // CursorRulesManager のインポート
+            const { CursorRulesManager } = await import('./cursorRulesManager');
+            await CursorRulesManager.addQueryCanvasRules();
+        } catch (error) {
+            vscode.window.showErrorMessage(`Cursor AI Rules セットアップエラー: ${error}`);
+        }
+    }
+
+    /**
      * 保存されたクエリ一覧を取得
      */
     private _handleGetSavedQueries() {
@@ -492,6 +505,9 @@ export class DatabaseClientPanel {
                 break;
             case 'formatSql':
                 this._handleFormatSql(message.data);
+                break;
+            case 'setupCursorRules':
+                this._handleSetupCursorRules();
                 break;
             case 'saveQueryResult':
                 this._handleSaveQueryResult(message.data);
@@ -1498,6 +1514,7 @@ export class DatabaseClientPanel {
     <!-- 上部：機能ボタン -->
     <div class="toolbar">
         <button onclick="openSavedQueries()">💾 保存済みクエリ</button>
+        <button onclick="setupCursorRules()">📝 Cursor AI設定</button>
         
         <div class="toolbar-spacer"></div>
         
@@ -1552,7 +1569,17 @@ export class DatabaseClientPanel {
     </div>
 
     <div class="result-container" id="resultContainer">
-        <div class="section-title">実行結果</div>
+        <div class="section-header">
+            <div class="section-title">実行結果</div>
+            <div class="button-group" id="resultButtons" style="display: none; gap: 10px;">
+                <button class="secondary" onclick="copyTableAsTSV()" title="PowerPointに貼り付け可能なタブ区切り形式でコピー">
+                    📋 TSVコピー
+                </button>
+                <button class="secondary" onclick="copyTableAsHTML()" title="スタイル付きHTMLとしてコピー（Excel/Word/PowerPointで利用可能）">
+                    📋 HTMLコピー
+                </button>
+            </div>
+        </div>
         <div id="resultTable"></div>
     </div>
 
@@ -2326,6 +2353,134 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             showMessage(\`クエリ結果を保存しました: \${message.fileName}\`, 'success');
         }
 
+        /**
+         * テーブルをTSV形式（タブ区切り）でクリップボードにコピー
+         * PowerPointに直接貼り付けできる
+         */
+        function copyTableAsTSV() {
+            if (!window.lastQueryResult) {
+                showMessage('コピーする結果がありません', 'error');
+                return;
+            }
+
+            const { columns, rows } = window.lastQueryResult;
+            
+            // ヘッダー行
+            let tsv = columns.join('\\t') + '\\n';
+            
+            // データ行
+            rows.forEach(row => {
+                const values = columns.map(col => {
+                    const value = row[col];
+                    // null/undefinedは空文字列に
+                    if (value === null || value === undefined) {
+                        return '';
+                    }
+                    // 数値や文字列をそのまま出力（フォーマットなし）
+                    return String(value);
+                });
+                tsv += values.join('\\t') + '\\n';
+            });
+            
+            // クリップボードにコピー
+            navigator.clipboard.writeText(tsv).then(() => {
+                showMessage(\`📋 TSV形式でコピーしました（\${rows.length}行）\\nPowerPointに貼り付けできます\`, 'success');
+            }).catch(err => {
+                showMessage('クリップボードへのコピーに失敗しました', 'error');
+                console.error('Copy failed:', err);
+            });
+        }
+
+        /**
+         * テーブルをHTML形式（スタイル付き）でクリップボードにコピー
+         * PowerPoint, Excel, Word などにスタイルを保持したまま貼り付けできる
+         */
+        function copyTableAsHTML() {
+            if (!window.lastQueryResult) {
+                showMessage('コピーする結果がありません', 'error');
+                return;
+            }
+
+            const { columns, rows, displayOptions } = window.lastQueryResult;
+            
+            // 表示オプションをMapに変換
+            const displayOptionsMap = new Map();
+            if (displayOptions) {
+                displayOptions.forEach(opt => {
+                    displayOptionsMap.set(opt.columnName, opt);
+                });
+            }
+            
+            // HTML形式でテーブルを生成
+            let html = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11pt;">';
+            
+            // ヘッダー行
+            html += '<thead><tr>';
+            columns.forEach(col => {
+                const opts = displayOptionsMap.get(col);
+                const style = generateColumnStyleForClipboard(opts);
+                html += \`<th style="background-color: #4472C4; color: white; font-weight: bold; padding: 8px; \${style}">\${col}</th>\`;
+            });
+            html += '</tr></thead>';
+            
+            // データ行
+            html += '<tbody>';
+            rows.forEach((row, rowIndex) => {
+                const bgColor = rowIndex % 2 === 0 ? '#FFFFFF' : '#F2F2F2';
+                html += '<tr>';
+                columns.forEach(col => {
+                    const opts = displayOptionsMap.get(col);
+                    const value = row[col];
+                    const formattedValue = opts ? formatValue(value, opts) : value;
+                    const conditionalStyle = opts ? generateConditionalStyle(value, opts) : '';
+                    const baseStyle = \`padding: 6px; background-color: \${bgColor};\`;
+                    html += \`<td style="\${baseStyle} \${conditionalStyle}">\${formattedValue !== null && formattedValue !== undefined ? formattedValue : ''}</td>\`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            
+            // ClipboardItem APIを使用してHTMLをコピー
+            const htmlBlob = new Blob([html], { type: 'text/html' });
+            const textBlob = new Blob([html], { type: 'text/plain' });
+            
+            const clipboardItem = new ClipboardItem({
+                'text/html': htmlBlob,
+                'text/plain': textBlob
+            });
+            
+            navigator.clipboard.write([clipboardItem]).then(() => {
+                showMessage(\`📋 HTML形式でコピーしました（\${rows.length}行）\\nPowerPoint/Excel/Wordにスタイル付きで貼り付けできます\`, 'success');
+            }).catch(err => {
+                // Fallback: プレーンテキストとしてコピー
+                navigator.clipboard.writeText(html).then(() => {
+                    showMessage('HTML形式でコピーしました（一部環境では手動で貼り付けが必要です）', 'success');
+                }).catch(err2 => {
+                    showMessage('クリップボードへのコピーに失敗しました', 'error');
+                    console.error('Copy failed:', err, err2);
+                });
+            });
+        }
+
+        /**
+         * クリップボード用のカラムスタイル生成（HTMLコピー用）
+         */
+        function generateColumnStyleForClipboard(opts) {
+            if (!opts) return '';
+            
+            let styles = [];
+            
+            if (opts.align) {
+                styles.push(\`text-align: \${opts.align}\`);
+            }
+            if (opts.width) {
+                styles.push(\`width: \${opts.width}\`);
+            }
+            
+            return styles.join('; ');
+        }
+
+
         function handleRestoreSession(message) {
             // SQL入力を復元
             if (message.sqlInput) {
@@ -2591,6 +2746,9 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             
             document.getElementById('resultTable').innerHTML = html;
             
+            // コピーボタンを表示
+            document.getElementById('resultButtons').style.display = 'flex';
+            
             // 結果情報を表示
             if (message.fromCache) {
                 const cachedDate = message.cachedAt ? new Date(message.cachedAt).toLocaleString() : '不明';
@@ -2668,6 +2826,11 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
         function openSavedQueries() {
             document.getElementById('savedQueriesModal').className = 'modal show';
             vscode.postMessage({ type: 'getSavedQueries' });
+        }
+
+        function setupCursorRules() {
+            // Cursor AI Rules セットアップコマンドを実行
+            vscode.postMessage({ type: 'setupCursorRules' });
         }
 
         function closeSavedQueries() {

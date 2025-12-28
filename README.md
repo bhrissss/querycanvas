@@ -13,6 +13,7 @@ A Cursor-integrated database client extension for VS Code. Supports MySQL/Postgr
 - **Automatic sync**: File watcher detects changes and updates UI immediately
 - **AI-powered query generation**: Ask Cursor to write SQL with display options
 - **Smart formatting**: Cursor knows the display options syntax and can apply it
+- **One-click setup** 🆕: "📝 Cursor AI設定" button adds QueryCanvas rules to `.cursorrules`
 
 ### 🗄️ Database Connection
 - **Multiple Connections**: Manage connections for development, staging, production environments
@@ -28,6 +29,7 @@ A Cursor-integrated database client extension for VS Code. Supports MySQL/Postgr
 - **✨ SQL Formatter**: One-click SQL formatting for better readability
 - **🎨 Display Options**: Customize result display via SQL comments (alignment, number format, datetime format, colors)
 - **🎯 Conditional Styling** 🆕: Dynamic cell styling based on values (e.g., negative numbers in red, values over threshold in bold)
+- **📋 Clipboard Copy** 🆕: Copy results as TSV or HTML (paste directly into PowerPoint/Excel/Word)
 
 ### 📋 Automated Schema Documentation ⭐
 - Automatically extract table structures
@@ -115,6 +117,34 @@ A Cursor-integrated database client extension for VS Code. Supports MySQL/Postgr
 SELECT amount, created_at FROM orders LIMIT 10;
 ```
 
+### 3.5. Copy Results to PowerPoint/Excel 📋
+
+After executing a query, you can copy the results to clipboard:
+
+1. **TSV Copy**: Click "📋 TSVコピー" button
+   - Simple tab-separated format
+   - Works everywhere (PowerPoint, Excel, Word)
+   - No styling preserved
+
+2. **HTML Copy**: Click "📋 HTMLコピー" button
+   - Rich HTML format with styles
+   - Colors, bold, number formatting preserved
+   - Conditional styling (red for negative, etc.) preserved
+   - Paste directly into PowerPoint/Excel/Word
+
+**Example workflow:**
+```sql
+/**
+ * @column 売上 type=int align=right format=number comma=true if<0:color=red
+ * @column 達成率 type=float if>=100:color=green,bold=true
+ */
+SELECT 店舗名, 売上, 達成率 FROM sales LIMIT 10;
+```
+→ Execute → HTMLコピー → Paste in PowerPoint → Beautiful table with colors!
+
+See [PowerPoint Copy Guide](./docs/POWERPOINT-COPY-GUIDE.md) for details.
+
+
 ### 4. Save Query Results
 
 1. After executing a query, click "💾 Save Result" button
@@ -133,6 +163,19 @@ SELECT amount, created_at FROM orders LIMIT 10;
 ### 6. Use with Cursor AI (Advanced) 🤖
 
 You can use Cursor AI to edit SQL queries directly:
+
+#### Quick Setup (Recommended)
+
+1. Open Database Client
+2. Click "📝 Cursor AI設定" button
+3. Done! QueryCanvas rules are added to `.cursorrules`
+
+Or use Command Palette:
+```
+Cmd+Shift+P → "QueryCanvas: Setup Cursor AI Rules"
+```
+
+#### Manual Usage
 
 1. Open Database Client and connect to database
 2. Session file is created at `.vscode/querycanvas-session.json`

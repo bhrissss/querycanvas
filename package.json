@@ -2,7 +2,7 @@
   "name": "querycanvas",
   "displayName": "QueryCanvas - AI-Powered Database Client",
   "description": "Cursor-integrated database client with smart SQL formatting and display customization",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "publisher": "okuyamashin",
   "icon": "icon.png",
   "author": {
@@ -44,6 +44,10 @@
       {
         "command": "querycanvas.open",
         "title": "QueryCanvas: Open Database Client"
+      },
+      {
+        "command": "querycanvas.setupCursorRules",
+        "title": "QueryCanvas: Setup Cursor AI Rules"
       }
     ]
   },
