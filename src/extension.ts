@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { DatabaseClientPanel } from './databaseClientPanel';
 
 /**
  * 拡張機能がアクティベートされた時に呼ばれます
@@ -7,13 +8,18 @@ import * as vscode from 'vscode';
 export function activate(context: vscode.ExtensionContext) {
     console.log('拡張機能 "vsex001" がアクティベートされました');
 
-    // コマンドを登録
-    const disposable = vscode.commands.registerCommand('vsex001.helloWorld', () => {
-        // ユーザーに情報メッセージを表示
+    // Hello World コマンドを登録
+    const helloWorldCommand = vscode.commands.registerCommand('vsex001.helloWorld', () => {
         vscode.window.showInformationMessage('Hello World from VS Extension 001! 👋');
     });
 
-    context.subscriptions.push(disposable);
+    // Database Client コマンドを登録
+    const openDatabaseClientCommand = vscode.commands.registerCommand('vsex001.openDatabaseClient', () => {
+        DatabaseClientPanel.createOrShow(context.extensionUri);
+    });
+
+    context.subscriptions.push(helloWorldCommand);
+    context.subscriptions.push(openDatabaseClientCommand);
 }
 
 /**
