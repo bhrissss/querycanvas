@@ -83,7 +83,7 @@
   "schema": {
     "extract": "Extract Schema",
     "extracting": "Extracting table schemas...",
-    "extractSuccess": "{count} table schemas saved to db-schema/tables/. Add supplementary information by conversing with Cursor.",
+    "extractSuccess": "{count} table schemas saved to querycanvas-schema/tables/. Add supplementary information by conversing with Cursor.",
     "extractError": "Schema extraction error: {error}",
     "template": {
       "physicalName": "Physical name",

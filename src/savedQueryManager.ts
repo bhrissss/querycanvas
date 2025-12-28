@@ -31,7 +31,7 @@ export class SavedQueryManager {
         }
 
         this.workspaceRoot = workspaceFolders[0].uri.fsPath;
-        this.queriesFile = path.join(this.workspaceRoot, '.vscode', 'saved-queries.json');
+        this.queriesFile = path.join(this.workspaceRoot, '.vscode', 'querycanvas-queries.json');
 
         // ディレクトリを作成
         this.ensureDirectories();

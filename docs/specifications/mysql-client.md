@@ -96,7 +96,7 @@ VS Code/Cursor内でMySQL/PostgreSQLデータベースに接続し、SQLクエ�
 2. **テーブル定義の自動ドキュメント化**
    - 全テーブルの構造を取得
    - Markdown形式でドキュメント生成
-   - プロジェクト内に保存（例: `db-schema/tables/`）
+   - プロジェクト内に保存（例: `querycanvas-schema/tables/`）
    - Cursorと会話しながらドキュメント改善
 
 3. **クエリ結果の保存と管理**
@@ -136,11 +136,11 @@ VS Code/Cursor内でMySQL/PostgreSQLデータベースに接続し、SQLクエ�
 
 - **接続情報の保存場所**
   ```
-  .vscode/db-connections.json (パスワード以外)
+  .vscode/querycanvas-connections.json (パスワード以外)
   Secret Storage (パスワードのみ)
   ```
 
-- **db-connections.json の例**
+- **querycanvas-connections.json の例**
   ```json
   {
     "connections": [
@@ -191,11 +191,11 @@ VS Code/Cursor内でMySQL/PostgreSQLデータベースに接続し、SQLクエ�
 
 - ⚠️ **パスワードの安全な保存**
   - パスワードは **Secret Storage API** に保存
-  - `db-connections.json` にはパスワードを含めない
+  - `querycanvas-connections.json` にはパスワードを含めない
   - キー: `vsex001.db.password.{connectionId}`
 
 - ⚠️ **パブリックリポジトリへの配慮**
-  - `.vscode/db-connections.json` を `.gitignore` に追加
+  - `.vscode/querycanvas-connections.json` を `.gitignore` に追加
   - サンプルファイル `db-connections.sample.json` を提供
 
 ### 2. SQLクエリ実行
@@ -266,9 +266,9 @@ VS Code/Cursor内でMySQL/PostgreSQLデータベースに接続し、SQLクエ�
   ```
 
 - **保存先**
-  - `db-schema/tables/users.md`
-  - `db-schema/tables/orders.md`
-  - `db-schema/README.md` （データベース全体の概要）
+  - `querycanvas-schema/tables/users.md`
+  - `querycanvas-schema/tables/orders.md`
+  - `querycanvas-schema/README.md` （データベース全体の概要）
 
 ### 5. クエリ結果の保存（Cursor連携）
 
@@ -389,7 +389,7 @@ VS Code/Cursor内でMySQL/PostgreSQLデータベースに接続し、SQLクエ�
                ↓
 ┌─────────────────────────────────────────┐
 │ ワークスペース内のファイル              │
-│ db-schema/          テーブル定義.md     │
+│ querycanvas-schema/          テーブル定義.md     │
 │ db-data/            クエリ結果.tsv/json │
 └─────────────────────────────────────────┘
                ↓
@@ -438,7 +438,7 @@ VS Code/Cursor内でMySQL/PostgreSQLデータベースに接続し、SQLクエ�
 
 ### フェーズ2: Cursor連携機能
 8. ⏳ テーブル定義取得機能
-9. ⏳ Markdownドキュメント生成（db-schema/）
+9. ⏳ Markdownドキュメント生成（querycanvas-schema/）
 10. ⏳ クエリ結果保存機能（TSV/JSON）
 11. ⏳ メタデータ管理（metadata.json）
 12. ⏳ データ一覧表示UI
@@ -518,9 +518,9 @@ UPDATE users SET name = 'Updated Name' WHERE id = 1;
 
 ```
 開発者: 「テーブル定義を取得」ボタンをクリック
-拡張機能: db-schema/ にMarkdownファイルを生成
+拡張機能: querycanvas-schema/ にMarkdownファイルを生成
 開発者: Cursorに「users テーブルの設計を確認して、改善点を提案して」
-Cursor: db-schema/tables/users.md を読んで提案
+Cursor: querycanvas-schema/tables/users.md を読んで提案
 開発者: ドキュメントに改善内容を追記
 ```
 

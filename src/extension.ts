@@ -7,27 +7,27 @@ import { ConnectionProfileManager } from './database';
  * コマンドが最初に実行される時にアクティベートされます
  */
 export function activate(context: vscode.ExtensionContext) {
-    console.log('拡張機能 "vsex001" がアクティベートされました');
+    console.log('QueryCanvas extension activated');
 
     // ConnectionProfileManager を初期化
     let profileManager: ConnectionProfileManager | undefined;
     try {
         profileManager = new ConnectionProfileManager(context);
-        console.log('ConnectionProfileManager を初期化しました');
+        console.log('ConnectionProfileManager initialized');
     } catch (error) {
-        console.warn('ConnectionProfileManager の初期化に失敗しました:', error);
+        console.warn('Failed to initialize ConnectionProfileManager:', error);
         // ワークスペースが開かれていない場合はスキップ
     }
 
-    // Hello World コマンドを登録
+    // Hello World コマンドを登録（互換性のため残す）
     const helloWorldCommand = vscode.commands.registerCommand('vsex001.helloWorld', () => {
-        vscode.window.showInformationMessage('Hello World from VS Extension 001! 👋');
+        vscode.window.showInformationMessage('Hello World from QueryCanvas! 🎨');
     });
 
-    // Database Client コマンドを登録
-    const openDatabaseClientCommand = vscode.commands.registerCommand('vsex001.openDatabaseClient', () => {
+    // QueryCanvas Database Client コマンドを登録
+    const openDatabaseClientCommand = vscode.commands.registerCommand('querycanvas.open', () => {
         if (!profileManager) {
-            vscode.window.showWarningMessage('ワークスペースを開いてから使用してください');
+            vscode.window.showWarningMessage('Please open a workspace first');
             return;
         }
         DatabaseClientPanel.createOrShow(context.extensionUri, profileManager);
@@ -41,6 +41,6 @@ export function activate(context: vscode.ExtensionContext) {
  * 拡張機能が非アクティベート（無効化）された時に呼ばれます
  */
 export function deactivate() {
-    console.log('拡張機能 "vsex001" が非アクティベートされました');
+    console.log('QueryCanvas extension deactivated');
 }
 

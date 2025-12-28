@@ -83,7 +83,7 @@
   "schema": {
     "extract": "テーブル定義",
     "extracting": "テーブル定義を取得しています...",
-    "extractSuccess": "{count}個のテーブル定義を db-schema/tables/ に保存しました。Cursorと会話しながら補足情報を追記してください。",
+    "extractSuccess": "{count}個のテーブル定義を querycanvas-schema/tables/ に保存しました。Cursorと会話しながら補足情報を追記してください。",
     "extractError": "スキーマ抽出エラー: {error}",
     "template": {
       "physicalName": "物理名",

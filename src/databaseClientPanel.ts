@@ -147,7 +147,7 @@ export class DatabaseClientPanel {
         const sessionFilePath = vscode.Uri.joinPath(
             workspaceFolders[0].uri,
             '.vscode',
-            'db-client-session.json'
+            'querycanvas-session.json'
         );
 
         console.log('[DatabaseClientPanel] Watching session file:', sessionFilePath.fsPath);
@@ -155,7 +155,7 @@ export class DatabaseClientPanel {
         // ファイル監視を開始（グロブパターンを使用）
         const pattern = new vscode.RelativePattern(
             workspaceFolders[0],
-            '.vscode/db-client-session.json'
+            '.vscode/querycanvas-session.json'
         );
         
         this._sessionFileWatcher = vscode.workspace.createFileSystemWatcher(

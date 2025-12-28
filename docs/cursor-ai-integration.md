@@ -8,7 +8,7 @@ This Database Client extension is designed to work seamlessly with Cursor AI. Yo
 
 ### Session File Synchronization
 
-The extension automatically saves your SQL query to `.vscode/db-client-session.json`. This file is:
+The extension automatically saves your SQL query to `.vscode/querycanvas-session.json`. This file is:
 
 1. **Monitored** - File watcher detects any changes
 2. **Synced** - Changes automatically reflect in UI
@@ -56,7 +56,7 @@ The extension automatically saves your SQL query to `.vscode/db-client-session.j
 
 ## Session File Format
 
-**Location:** `.vscode/db-client-session.json`
+**Location:** `.vscode/querycanvas-session.json`
 
 **Structure:**
 ```json
@@ -79,10 +79,10 @@ The extension automatically saves your SQL query to `.vscode/db-client-session.j
 ### Example 1: Basic Query Modification
 
 **User asks Cursor:**
-> @Codebase Edit the SQL in db-client-session.json to add a LIMIT 10 clause
+> @Codebase Edit the SQL in querycanvas-session.json to add a LIMIT 10 clause
 
 **Cursor AI does:**
-1. Opens `.vscode/db-client-session.json`
+1. Opens `.vscode/querycanvas-session.json`
 2. Modifies `sqlInput` field:
 ```json
 {
@@ -159,7 +159,7 @@ If schema extraction is done, Cursor knows your table structure:
 
 ```
 @Codebase Write a query to get user orders with display formatting.
-Use the table definitions in db-schema/
+Use the table definitions in querycanvas-schema/
 ```
 
 ## Common Prompts
@@ -212,7 +212,7 @@ Use the table definitions in db-schema/
 
 **Solution:**
 ```
-@Codebase Fix the syntax error in db-client-session.json
+@Codebase Fix the syntax error in querycanvas-session.json
 ```
 
 Cursor AI will validate and fix the JSON structure.
@@ -248,7 +248,7 @@ All with appropriate display formatting
 Cursor can reference your schema docs:
 
 ```
-@Codebase Based on the table definition in db-schema/tables/orders.md,
+@Codebase Based on the table definition in querycanvas-schema/tables/orders.md,
 write a query to analyze order patterns
 ```
 

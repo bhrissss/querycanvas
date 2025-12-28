@@ -20,7 +20,7 @@ export class SchemaDocumentGenerator {
         }
 
         this.workspaceRoot = workspaceFolders[0].uri.fsPath;
-        this.schemaDir = path.join(this.workspaceRoot, 'db-schema');
+        this.schemaDir = path.join(this.workspaceRoot, 'querycanvas-schema');
         this.tablesDir = path.join(this.schemaDir, 'tables');
         this.i18n = new I18nManager(vscode.env.language);
 

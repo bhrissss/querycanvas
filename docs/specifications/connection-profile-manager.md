@@ -2,7 +2,7 @@
 
 ## 概要
 
-複数のデータベース接続情報を保存・管理する機能です。接続プロファイルは `.vscode/db-connections.json` に保存され、パスワードは VS Code Secret Storage に安全に保存されます。
+複数のデータベース接続情報を保存・管理する機能です。接続プロファイルは `.vscode/querycanvas-connections.json` に保存され、パスワードは VS Code Secret Storage に安全に保存されます。
 
 ## 実装内容
 
@@ -13,7 +13,7 @@
 #### 主な機能
 
 1. **プロファイルの読み込み・保存**
-   - `.vscode/db-connections.json` からの読み込み
+   - `.vscode/querycanvas-connections.json` からの読み込み
    - ファイルへの保存
 
 2. **CRUD 操作**
@@ -37,13 +37,13 @@
 
 ```
 .vscode/
-├── db-connections.json         # 接続プロファイル（パスワード除く）
+├── querycanvas-connections.json         # 接続プロファイル（パスワード除く）
 └── db-connections.sample.json  # サンプルファイル（リポジトリに含む）
 ```
 
 ## データ形式
 
-### db-connections.json
+### querycanvas-connections.json
 
 ```json
 {
@@ -74,13 +74,13 @@ vsex001.db.password.dev-mysql = "actual_password"
 
 ### パスワードの保護
 - ✅ パスワードは Secret Storage に保存（暗号化）
-- ✅ `db-connections.json` にはパスワードを含めない
-- ✅ `.gitignore` に `db-connections.json` を追加
+- ✅ `querycanvas-connections.json` にはパスワードを含めない
+- ✅ `.gitignore` に `querycanvas-connections.json` を追加
 
 ### .gitignore の設定
 
 ```
-.vscode/db-connections.json
+.vscode/querycanvas-connections.json
 ```
 
 これにより、接続情報がGitリポジトリにコミットされるのを防ぎます。

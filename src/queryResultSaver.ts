@@ -38,7 +38,7 @@ export class QueryResultSaver {
         }
 
         this.workspaceRoot = workspaceFolders[0].uri.fsPath;
-        this.resultsDir = path.join(this.workspaceRoot, 'query-results');
+        this.resultsDir = path.join(this.workspaceRoot, 'querycanvas-results');
         this.metadataFile = path.join(this.resultsDir, 'metadata.json');
 
         // ディレクトリを作成

@@ -16,7 +16,7 @@ export class AutoQueryResultSaver {
         }
 
         this.workspaceRoot = workspaceFolders[0].uri.fsPath;
-        this.autoSaveDir = path.join(this.workspaceRoot, 'query-results', 'auto-saved');
+        this.autoSaveDir = path.join(this.workspaceRoot, 'querycanvas-results', 'auto-saved');
 
         // ディレクトリを作成
         this.ensureDirectories();

@@ -1,11 +1,11 @@
-# VS Extension 001 - Cursor-Integrated Database Client
+# QueryCanvas - AI-Powered Database Client
 
-A database client extension for Cursor/VS Code. Supports MySQL/PostgreSQL with AI-powered schema documentation and query management features designed for seamless integration with Cursor AI.
+A Cursor-integrated database client extension for VS Code. Supports MySQL/PostgreSQL with AI-powered schema documentation and query management features designed for seamless integration with Cursor AI.
 
 ## Features
 
 ### 🤖 Cursor AI Integration ⭐
-- **Edit SQL via AI**: Cursor can modify `.vscode/db-client-session.json` to update SQL in real-time
+- **Edit SQL via AI**: Cursor can modify `.vscode/querycanvas-session.json` to update SQL in real-time
 - **Automatic sync**: File watcher detects changes and updates UI immediately
 - **AI-powered query generation**: Ask Cursor to write SQL with display options
 - **Smart formatting**: Cursor knows the display options syntax and can apply it
@@ -26,14 +26,14 @@ A database client extension for Cursor/VS Code. Supports MySQL/PostgreSQL with A
 
 ### 📋 Automated Schema Documentation ⭐
 - Automatically extract table structures
-- Generate documentation in Markdown format (`db-schema/tables/`)
+- Generate documentation in Markdown format (`querycanvas-schema/tables/`)
 - Add logical names and descriptions with Cursor AI
 - Preserves your additions during re-extraction
 - Auto-extracts foreign keys and indexes
 
 ### 💾 Query Result Saving ⭐
 - Export in **TSV/JSON** format
-- Manage with names and comments (`query-results/`)
+- Manage with names and comments (`querycanvas-results/`)
 - Automatically records metadata (SQL, timestamp, row count)
 - Analyze saved data with Cursor AI
 
@@ -114,14 +114,14 @@ SELECT amount, created_at FROM orders LIMIT 10;
 
 1. After executing a query, click "💾 Save Result" button
 2. Enter name, comment, and format (TSV/JSON)
-3. Click "💾 Save" to save to `query-results/`
+3. Click "💾 Save" to save to `querycanvas-results/`
 4. Manage past results via metadata file
 
 ### 5. Extract Schema
 
 1. Connect to database
 2. Click "📋 Extract Schema" button
-3. All table definitions are saved to `db-schema/tables/` in Markdown format
+3. All table definitions are saved to `querycanvas-schema/tables/` in Markdown format
 4. Add logical names and descriptions with Cursor AI
 5. Your additions are preserved during re-extraction
 
@@ -130,10 +130,10 @@ SELECT amount, created_at FROM orders LIMIT 10;
 You can use Cursor AI to edit SQL queries directly:
 
 1. Open Database Client and connect to database
-2. Session file is created at `.vscode/db-client-session.json`
+2. Session file is created at `.vscode/querycanvas-session.json`
 3. In Cursor Chat, ask:
    ```
-   @Codebase Edit the SQL in db-client-session.json to select top 10 orders with amount > 1000,
+   @Codebase Edit the SQL in querycanvas-session.json to select top 10 orders with amount > 1000,
    and add display options to format the amount with commas
    ```
 4. Cursor AI modifies the session file
@@ -220,17 +220,17 @@ vsex001/
 ├── docs/                               # Documentation
 │   ├── conversations/                  # Development history
 │   └── specifications/                 # Specifications
-├── db-schema/                          # Table definitions (auto-generated)
+├── querycanvas-schema/                 # Table definitions (auto-generated)
 │   └── tables/                         # Markdown per table
-├── query-results/                      # Saved query results
+├── querycanvas-results/                # Saved query results
 │   └── metadata.json                   # Query result metadata
 ├── out/                                # Compiled JavaScript
 ├── .vscode/
 │   ├── launch.json                     # Debug configuration
 │   ├── tasks.json                      # Build task configuration
-│   ├── db-connections.json             # Connection profiles (gitignored)
-│   ├── db-client-session.json          # Session state (gitignored)
-│   └── saved-queries.json              # Saved queries (gitignored)
+│   ├── querycanvas-connections.json    # Connection profiles (gitignored)
+│   ├── querycanvas-session.json        # Session state (gitignored)
+│   └── querycanvas-queries.json        # Saved queries (gitignored)
 ├── package.json                        # Extension manifest
 ├── tsconfig.json                       # TypeScript configuration
 ├── TESTING.md                          # Testing instructions

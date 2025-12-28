@@ -1,0 +1,26 @@
+{
+  "connections": [
+    {
+      "id": "example-mysql",
+      "name": "Development DB (MySQL)",
+      "type": "mysql",
+      "host": "localhost",
+      "port": 3306,
+      "database": "myapp_development",
+      "username": "devuser",
+      "ssl": false
+    },
+    {
+      "id": "example-postgres",
+      "name": "Production DB (PostgreSQL)",
+      "type": "postgresql",
+      "host": "db.example.com",
+      "port": 5432,
+      "database": "myapp_production",
+      "username": "readonly_user",
+      "ssl": true
+    }
+  ],
+  "activeConnectionId": "example-mysql"
+}
+

@@ -1,7 +1,7 @@
-# Cursor Rules for VS Extension 001 - Database Client
+# Cursor Rules for QueryCanvas - Database Client
 
 ## Project Overview
-This is a database client extension for VS Code/Cursor with AI-powered features.
+QueryCanvas is a database client extension for VS Code/Cursor with AI-powered features.
 
 ## 🤖 Cursor AI Integration
 
@@ -9,7 +9,7 @@ This extension is designed to work seamlessly with Cursor AI. You can edit SQL q
 
 ### SQL Session File
 
-**Location:** `.vscode/db-client-session.json`
+**Location:** `.vscode/querycanvas-session.json`
 
 **What it contains:**
 - Current SQL query in the editor
@@ -20,7 +20,7 @@ This extension is designed to work seamlessly with Cursor AI. You can edit SQL q
 
 1. **Edit SQL directly in session file:**
    - User can ask: "Modify the SQL in the session to add a WHERE clause"
-   - Cursor AI edits `.vscode/db-client-session.json`
+   - Cursor AI edits `.vscode/querycanvas-session.json`
    - Changes reflect in Database Client UI immediately (via file watcher)
 
 2. **Generate optimized SQL:**
@@ -45,7 +45,7 @@ This extension is designed to work seamlessly with Cursor AI. You can edit SQL q
 ```
 User: "Add display options to format the 'price' column"
   ↓
-Cursor AI: Edits .vscode/db-client-session.json
+Cursor AI: Edits .vscode/querycanvas-session.json
   ↓
 File watcher: Detects change
   ↓

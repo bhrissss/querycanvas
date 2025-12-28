@@ -1,0 +1,26 @@
+{
+  "connections": [
+    {
+      "id": "ninji-mysql",
+      "name": "開発DB (MySQL) NINJI",
+      "type": "mysql",
+      "host": "localhost",
+      "port": 3306,
+      "database": "ninji",
+      "username": "root",
+      "ssl": false
+    },
+    {
+      "id": "example-postgres",
+      "name": "本番DB (PostgreSQL)",
+      "type": "postgresql",
+      "host": "db.example.com",
+      "port": 5432,
+      "database": "myapp_production",
+      "username": "readonly_user",
+      "ssl": true
+    }
+  ],
+  "activeConnectionId": "ninji-mysql"
+}
+

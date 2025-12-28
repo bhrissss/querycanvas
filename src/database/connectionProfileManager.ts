@@ -37,7 +37,7 @@ export class ConnectionProfileManager {
             fs.mkdirSync(vscodeDir, { recursive: true });
         }
 
-        this.configFilePath = path.join(vscodeDir, 'db-connections.json');
+        this.configFilePath = path.join(vscodeDir, 'querycanvas-connections.json');
         this.profilesData = this.loadProfiles();
     }
 

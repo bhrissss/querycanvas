@@ -2,8 +2,9 @@ node_modules
 out
 *.vsix
 .vscode-test/
-.vscode/db-connections.json
-.vscode/db-client-session.json
-db-schema/
-query-results/
+.vscode/querycanvas-connections.json
+.vscode/querycanvas-session.json
+.vscode/querycanvas-queries.json
+querycanvas-schema/
+querycanvas-results/
 

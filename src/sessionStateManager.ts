@@ -31,7 +31,7 @@ export class SessionStateManager {
         }
 
         this.workspaceRoot = workspaceFolders[0].uri.fsPath;
-        this.stateFile = path.join(this.workspaceRoot, '.vscode', 'db-client-session.json');
+        this.stateFile = path.join(this.workspaceRoot, '.vscode', 'querycanvas-session.json');
 
         // 初期状態
         this.currentState = {
