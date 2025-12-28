@@ -19,11 +19,6 @@ export function activate(context: vscode.ExtensionContext) {
         // ワークスペースが開かれていない場合はスキップ
     }
 
-    // Hello World コマンドを登録（互換性のため残す）
-    const helloWorldCommand = vscode.commands.registerCommand('vsex001.helloWorld', () => {
-        vscode.window.showInformationMessage('Hello World from QueryCanvas! 🎨');
-    });
-
     // QueryCanvas Database Client コマンドを登録
     const openDatabaseClientCommand = vscode.commands.registerCommand('querycanvas.open', () => {
         if (!profileManager) {
@@ -33,7 +28,6 @@ export function activate(context: vscode.ExtensionContext) {
         DatabaseClientPanel.createOrShow(context.extensionUri, profileManager);
     });
 
-    context.subscriptions.push(helloWorldCommand);
     context.subscriptions.push(openDatabaseClientCommand);
 }
 

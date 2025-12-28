@@ -8,4 +8,11 @@ vsc-extension-quickstart.md
 **/.eslintrc.json
 **/*.map
 **/*.ts
-
+docs/**
+.vscode/querycanvas-connections.json
+.vscode/db-connections.json
+querycanvas-schema/**
+querycanvas-results/**
+db-schema/**
+query-results/**
+node_modules/**

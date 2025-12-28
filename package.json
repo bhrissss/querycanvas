@@ -2,24 +2,44 @@
   "name": "querycanvas",
   "displayName": "QueryCanvas - AI-Powered Database Client",
   "description": "Cursor-integrated database client with smart SQL formatting and display customization",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "publisher": "okuyamashin",
+  "author": {
+    "name": "okuyamashin"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/okuyamashin/querycanvas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/okuyamashin/querycanvas/issues"
+  },
+  "homepage": "https://github.com/okuyamashin/querycanvas#readme",
+  "keywords": [
+    "database",
+    "sql",
+    "mysql",
+    "postgresql",
+    "cursor",
+    "ai",
+    "database-client",
+    "query",
+    "data-visualization"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
+    "Data Science",
     "Other"
   ],
   "activationEvents": [
-    "onCommand:vsex001.helloWorld",
     "onCommand:querycanvas.open"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "vsex001.helloWorld",
-        "title": "Hello World"
-      },
       {
         "command": "querycanvas.open",
         "title": "QueryCanvas: Open Database Client"

@@ -1,5 +1,9 @@
 # QueryCanvas - AI-Powered Database Client
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![VS Code](https://img.shields.io/badge/VS%20Code-1.85%2B-blue)](https://code.visualstudio.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3%2B-blue)](https://www.typescriptlang.org/)
+
 A Cursor-integrated database client extension for VS Code. Supports MySQL/PostgreSQL with AI-powered schema documentation and query management features designed for seamless integration with Cursor AI.
 
 ## Features
@@ -281,13 +285,21 @@ See [Database Connection Layer Specification](./docs/specifications/database-con
 - [mysql2 Documentation](https://github.com/sidorares/node-mysql2)
 - [node-postgres Documentation](https://node-postgres.com/)
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
 ## License
 
-This is a sample project.
+MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Author
 
-okuyama
+**okuyamashin**
+
+- GitHub: [@okuyamashin](https://github.com/okuyamashin)
+- Repository: [querycanvas](https://github.com/okuyamashin/querycanvas)
+
 
 ## Repository
 
