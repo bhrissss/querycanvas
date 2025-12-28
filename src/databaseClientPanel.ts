@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ConnectionProfileManager } from './database';
+import { ConnectionProfileManager, IDBConnection, ConnectionFactory } from './database';
 
 /**
  * データベースクライアントのWebviewパネルを管理するクラス
@@ -11,6 +11,7 @@ export class DatabaseClientPanel {
     private readonly _panel: vscode.WebviewPanel;
     private readonly _profileManager: ConnectionProfileManager;
     private _disposables: vscode.Disposable[] = [];
+    private _currentConnection: IDBConnection | null = null;
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, profileManager: ConnectionProfileManager) {
         this._panel = panel;
@@ -73,6 +74,13 @@ export class DatabaseClientPanel {
     public dispose() {
         DatabaseClientPanel.currentPanel = undefined;
 
+        // 接続を切断
+        if (this._currentConnection) {
+            this._currentConnection.disconnect().catch(err => {
+                console.error('接続の切断に失敗しました:', err);
+            });
+        }
+
         this._panel.dispose();
 
         while (this._disposables.length) {
@@ -90,6 +98,15 @@ export class DatabaseClientPanel {
         switch (message.type) {
             case 'getProfiles':
                 this._handleGetProfiles();
+                break;
+            case 'connect':
+                this._handleConnect(message.data);
+                break;
+            case 'disconnect':
+                this._handleDisconnect();
+                break;
+            case 'changePassword':
+                this._handleChangePassword(message.data);
                 break;
             case 'testConnection':
                 this._handleTestConnection(message.data);
@@ -121,35 +138,240 @@ export class DatabaseClientPanel {
     }
 
     /**
+     * データベースに接続
+     */
+    private async _handleConnect(data: { profileId: string }) {
+        try {
+            // 既存の接続があれば切断
+            if (this._currentConnection) {
+                await this._currentConnection.disconnect();
+                this._currentConnection = null;
+            }
+
+            // プロファイルを取得
+            const profile = this._profileManager.getProfile(data.profileId);
+            if (!profile) {
+                throw new Error(`接続プロファイル "${data.profileId}" が見つかりません`);
+            }
+
+            // パスワードを取得
+            let password = await this._profileManager.getPassword(data.profileId);
+            
+            // パスワードが保存されていない場合は入力を求める
+            if (password === undefined) {
+                password = await vscode.window.showInputBox({
+                    prompt: `${profile.name} のパスワードを入力してください（パスワードなしの場合は空欄のままEnter）`,
+                    password: true,
+                    placeHolder: 'パスワード（空欄可）',
+                    ignoreFocusOut: true
+                });
+
+                // undefined はキャンセル、空文字列はパスワードなし
+                if (password === undefined) {
+                    // キャンセルされた場合
+                    this.sendMessage({
+                        type: 'connectionResult',
+                        success: false,
+                        error: 'パスワードの入力がキャンセルされました'
+                    });
+                    return;
+                }
+
+                // パスワードが入力された場合（空文字列でも）保存するか確認
+                const savePassword = await vscode.window.showQuickPick(
+                    ['はい', 'いいえ'],
+                    {
+                        placeHolder: 'パスワードを保存しますか？（Secret Storageに暗号化して保存されます）',
+                        ignoreFocusOut: true
+                    }
+                );
+
+                if (savePassword === 'はい') {
+                    await this._profileManager.updateProfile(profile, password);
+                    vscode.window.showInformationMessage('パスワードを保存しました');
+                }
+            }
+
+            // 接続を作成（空文字列のパスワードも許可）
+            this._currentConnection = ConnectionFactory.createConnection(profile, password);
+
+            // 接続
+            await this._currentConnection.connect();
+
+            // アクティブな接続として設定
+            this._profileManager.setActiveConnection(data.profileId);
+
+            // 成功を通知
+            this.sendMessage({
+                type: 'connectionResult',
+                success: true,
+                profileId: data.profileId,
+                profileName: profile.name
+            });
+
+            vscode.window.showInformationMessage(`${profile.name} に接続しました`);
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            this.sendMessage({
+                type: 'connectionResult',
+                success: false,
+                error: errorMessage
+            });
+
+            vscode.window.showErrorMessage(`接続エラー: ${errorMessage}`);
+        }
+    }
+
+    /**
+     * データベースから切断
+     */
+    private async _handleDisconnect() {
+        try {
+            if (!this._currentConnection) {
+                throw new Error('接続されていません');
+            }
+
+            await this._currentConnection.disconnect();
+            this._currentConnection = null;
+
+            this.sendMessage({
+                type: 'disconnectionResult',
+                success: true
+            });
+
+            vscode.window.showInformationMessage('データベースから切断しました');
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            this.sendMessage({
+                type: 'disconnectionResult',
+                success: false,
+                error: errorMessage
+            });
+
+            vscode.window.showErrorMessage(`切断エラー: ${errorMessage}`);
+        }
+    }
+
+    /**
+     * パスワードを変更
+     */
+    private async _handleChangePassword(data: { profileId: string }) {
+        try {
+            const profile = this._profileManager.getProfile(data.profileId);
+            if (!profile) {
+                throw new Error(`接続プロファイル "${data.profileId}" が見つかりません`);
+            }
+
+            // 新しいパスワードを入力
+            const newPassword = await vscode.window.showInputBox({
+                prompt: `${profile.name} の新しいパスワードを入力してください`,
+                password: true,
+                placeHolder: '新しいパスワード',
+                ignoreFocusOut: true
+            });
+
+            if (!newPassword) {
+                vscode.window.showInformationMessage('パスワードの変更がキャンセルされました');
+                return;
+            }
+
+            // パスワードを更新
+            await this._profileManager.updateProfile(profile, newPassword);
+
+            vscode.window.showInformationMessage(`${profile.name} のパスワードを更新しました`);
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`パスワード変更エラー: ${errorMessage}`);
+        }
+    }
+
+    /**
      * 接続テストを処理
      */
     private async _handleTestConnection(data: any) {
-        // TODO: 実際の接続テストを実装
-        vscode.window.showInformationMessage(`接続テスト: ${data.host}:${data.port}`);
-        this.sendMessage({
-            type: 'connectionTestResult',
-            success: true,
-            message: '接続テストは成功しました'
-        });
+        try {
+            const profile = this._profileManager.getProfile(data.profileId);
+            if (!profile) {
+                throw new Error(`接続プロファイル "${data.profileId}" が見つかりません`);
+            }
+
+            const password = await this._profileManager.getPassword(data.profileId);
+            if (!password) {
+                throw new Error('パスワードが設定されていません');
+            }
+
+            const connection = ConnectionFactory.createConnection(profile, password);
+            const success = await connection.testConnection();
+
+            this.sendMessage({
+                type: 'connectionTestResult',
+                success,
+                message: success ? '接続テストに成功しました' : '接続テストに失敗しました'
+            });
+
+            if (success) {
+                vscode.window.showInformationMessage(`${profile.name} への接続テストに成功しました`);
+            }
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            this.sendMessage({
+                type: 'connectionTestResult',
+                success: false,
+                error: errorMessage
+            });
+
+            vscode.window.showErrorMessage(`接続テストエラー: ${errorMessage}`);
+        }
     }
 
     /**
      * クエリ実行を処理
      */
     private async _handleExecuteQuery(data: any) {
-        // TODO: 実際のクエリ実行を実装
-        vscode.window.showInformationMessage(`クエリ実行: ${data.query}`);
-        this.sendMessage({
-            type: 'queryResult',
-            success: true,
-            columns: ['id', 'name', 'email'],
-            rows: [
-                { id: 1, name: 'Alice', email: 'alice@example.com' },
-                { id: 2, name: 'Bob', email: 'bob@example.com' }
-            ],
-            rowCount: 2,
-            executionTime: 0.123
-        });
+        try {
+            // 接続を確認
+            if (!this._currentConnection || !this._currentConnection.isConnected()) {
+                throw new Error('データベースに接続されていません。先に接続してください。');
+            }
+
+            const query = data.query.trim();
+            if (!query) {
+                throw new Error('SQLクエリが入力されていません');
+            }
+
+            // クエリを実行
+            const result = await this._currentConnection.executeQuery(query);
+
+            // 結果を送信
+            this.sendMessage({
+                type: 'queryResult',
+                success: true,
+                columns: result.columns,
+                rows: result.rows,
+                rowCount: result.rowCount,
+                executionTime: result.executionTime
+            });
+
+            vscode.window.showInformationMessage(`クエリを実行しました (${result.rowCount}行, ${result.executionTime.toFixed(3)}秒)`);
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            this.sendMessage({
+                type: 'queryResult',
+                success: false,
+                error: errorMessage
+            });
+
+            vscode.window.showErrorMessage(`クエリエラー: ${errorMessage}`);
+        }
     }
 
     /**
@@ -308,6 +530,12 @@ export class DatabaseClientPanel {
     <div class="header">
         <span class="connection-status" id="connectionStatus"></span>
         <span id="connectionText">未接続</span>
+        <select id="profileSelect" style="margin-left: 10px; padding: 4px;">
+            <option value="">接続を選択...</option>
+        </select>
+        <button onclick="connectToDatabase()">接続</button>
+        <button onclick="disconnectFromDatabase()">切断</button>
+        <button onclick="changePassword()">🔑 パスワード変更</button>
         <button onclick="openConnectionManager()">⚙️ 接続管理</button>
         <button onclick="getTableSchema()">📋 テーブル定義</button>
         <button onclick="openDataManager()">📁 データ管理</button>
@@ -333,12 +561,29 @@ export class DatabaseClientPanel {
 
     <script>
         const vscode = acquireVsCodeApi();
+        
+        let currentProfileId = null;
+        let isConnected = false;
+
+        // 初期化時にプロファイル一覧を取得
+        window.addEventListener('load', () => {
+            vscode.postMessage({ type: 'getProfiles' });
+        });
 
         // メッセージを受信
         window.addEventListener('message', event => {
             const message = event.data;
             
             switch (message.type) {
+                case 'profilesList':
+                    handleProfilesList(message);
+                    break;
+                case 'connectionResult':
+                    handleConnectionResult(message);
+                    break;
+                case 'disconnectionResult':
+                    handleDisconnectionResult(message);
+                    break;
                 case 'connectionTestResult':
                     handleConnectionTestResult(message);
                     break;
@@ -348,7 +593,96 @@ export class DatabaseClientPanel {
             }
         });
 
+        function handleProfilesList(message) {
+            const select = document.getElementById('profileSelect');
+            select.innerHTML = '<option value="">接続を選択...</option>';
+            
+            message.profiles.forEach(profile => {
+                const option = document.createElement('option');
+                option.value = profile.id;
+                option.textContent = \`\${profile.name} (\${profile.type})\`;
+                if (profile.id === message.activeId) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+        }
+
+        function connectToDatabase() {
+            const select = document.getElementById('profileSelect');
+            const profileId = select.value;
+            
+            if (!profileId) {
+                showMessage('接続プロファイルを選択してください', 'error');
+                return;
+            }
+
+            vscode.postMessage({
+                type: 'connect',
+                data: { profileId }
+            });
+        }
+
+        function disconnectFromDatabase() {
+            vscode.postMessage({ type: 'disconnect' });
+        }
+
+        function changePassword() {
+            const select = document.getElementById('profileSelect');
+            const profileId = select.value;
+            
+            if (!profileId) {
+                showMessage('接続プロファイルを選択してください', 'error');
+                return;
+            }
+
+            vscode.postMessage({
+                type: 'changePassword',
+                data: { profileId }
+            });
+        }
+
+        function handleConnectionResult(message) {
+            if (message.success) {
+                isConnected = true;
+                currentProfileId = message.profileId;
+                
+                const statusElem = document.getElementById('connectionStatus');
+                const textElem = document.getElementById('connectionText');
+                
+                statusElem.className = 'connection-status connected';
+                textElem.textContent = \`\${message.profileName} に接続中\`;
+                
+                showMessage('データベースに接続しました', 'success');
+            } else {
+                isConnected = false;
+                showMessage(\`接続エラー: \${message.error}\`, 'error');
+            }
+        }
+
+        function handleDisconnectionResult(message) {
+            if (message.success) {
+                isConnected = false;
+                currentProfileId = null;
+                
+                const statusElem = document.getElementById('connectionStatus');
+                const textElem = document.getElementById('connectionText');
+                
+                statusElem.className = 'connection-status';
+                textElem.textContent = '未接続';
+                
+                showMessage('データベースから切断しました', 'success');
+            } else {
+                showMessage(\`切断エラー: \${message.error}\`, 'error');
+            }
+        }
+
         function executeQuery() {
+            if (!isConnected) {
+                showMessage('データベースに接続してください', 'error');
+                return;
+            }
+
             const query = document.getElementById('sqlInput').value.trim();
             if (!query) {
                 showMessage('SQLクエリを入力してください', 'error');
