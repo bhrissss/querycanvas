@@ -2934,8 +2934,10 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             // デフォルトはテーブルビューを表示
             switchToTableView();
             
-            // コピーボタンを表示
-            document.getElementById('resultButtons').style.display = 'flex';
+            // グラフオプションがない場合は、グラフコピーボタンを非表示（念のため）
+            if (!message.chartOptions) {
+                document.getElementById('chartImageCopyBtn').style.display = 'none';
+            }
             
             // 結果情報を表示
             if (message.fromCache) {
@@ -3084,6 +3086,10 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             document.getElementById('resultChart').style.display = 'none';
             document.getElementById('tableViewBtn').classList.add('active');
             document.getElementById('chartViewBtn').classList.remove('active');
+            
+            // テーブルビューではTSV/HTMLコピーボタンを表示、グラフコピーボタンを非表示
+            document.getElementById('resultButtons').style.display = 'flex';
+            document.getElementById('chartImageCopyBtn').style.display = 'none';
         }
 
         /**
@@ -3094,6 +3100,10 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             document.getElementById('resultChart').style.display = 'block';
             document.getElementById('tableViewBtn').classList.remove('active');
             document.getElementById('chartViewBtn').classList.add('active');
+            
+            // グラフビューではグラフコピーボタンを表示、TSV/HTMLコピーボタンを非表示
+            document.getElementById('resultButtons').style.display = 'none';
+            document.getElementById('chartImageCopyBtn').style.display = 'inline-block';
         }
 
         /**
