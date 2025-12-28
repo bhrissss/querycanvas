@@ -2895,7 +2895,7 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
                 document.getElementById('viewToggle').style.display = 'flex';
                 document.getElementById('chartImageCopyBtn').style.display = 'inline-block';
                 // グラフを描画
-                renderChart(message.columns, message.rows, message.chartOptions, displayOptionsMap);
+                renderChart(message.columns, message.rows, message.chartOptions, displayOptionsMap, rowStyleRules);
             } else {
                 document.getElementById('viewToggle').style.display = 'none';
                 document.getElementById('chartImageCopyBtn').style.display = 'none';
@@ -2958,7 +2958,7 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
         /**
          * グラフを描画
          */
-        function renderChart(columns, rows, chartOptions, displayOptionsMap) {
+        function renderChart(columns, rows, chartOptions, displayOptionsMap, rowStyleRules) {
             // Chart.jsが読み込まれているか確認
             if (typeof Chart === 'undefined') {
                 console.error('Chart.js is not loaded');
@@ -2986,16 +2986,62 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             const datasets = chartOptions.yAxis.map((yColumn, index) => {
                 // @columnで指定された色を取得
                 const columnOpts = displayOptionsMap.get(yColumn);
-                const colors = [
+                const defaultColors = [
                     '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
                     '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
                 ];
-                const color = columnOpts?.color || colors[index % colors.length];
-
+                
                 const data = rows.map(row => {
                     const value = row[yColumn];
                     return value !== null && value !== undefined ? Number(value) : 0;
                 });
+
+                // 円グラフの場合は、カスタムcolorsまたはデフォルトカラーパレットを使用
+                let backgroundColor;
+                let borderColor;
+                
+                if (chartOptions.type === 'pie') {
+                    // 円グラフ：各データポイント（セグメント）に異なる色を適用
+                    // 1. @rowディレクティブで指定された色を優先
+                    // 2. colorsパラメータで指定された色
+                    // 3. デフォルトカラーパレット
+                    
+                    backgroundColor = data.map((_, i) => {
+                        const rowData = rows[i];
+                        const xValue = rowData[chartOptions.xAxis];
+                        
+                        // @rowディレクティブで指定された色を探す
+                        if (rowStyleRules && rowStyleRules.length > 0) {
+                            for (const rule of rowStyleRules) {
+                                if (rule.columnName === chartOptions.xAxis) {
+                                    // 文字列比較
+                                    if (typeof rule.value === 'string' && String(xValue) === rule.value) {
+                                        if (rule.styles.color) {
+                                            return rule.styles.color;
+                                        }
+                                        if (rule.styles.backgroundColor) {
+                                            return rule.styles.backgroundColor;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // colorsパラメータで指定された色
+                        if (chartOptions.colors && chartOptions.colors.length > 0) {
+                            return chartOptions.colors[i % chartOptions.colors.length];
+                        }
+                        
+                        // デフォルトカラーパレット
+                        return defaultColors[i % defaultColors.length];
+                    });
+                    borderColor = '#ffffff'; // 円グラフのボーダーは白
+                } else {
+                    // 線グラフ・棒グラフ等：単一色
+                    const color = columnOpts?.color || defaultColors[index % defaultColors.length];
+                    backgroundColor = color + '33'; // 20% opacity
+                    borderColor = color;
+                }
 
                 // 混合チャートの場合、各データセットのタイプを設定
                 const datasetType = chartOptions.yAxisTypes && chartOptions.yAxisTypes[index]
@@ -3006,9 +3052,9 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
                     label: yColumn,
                     data: data,
                     type: chartOptions.type === 'mixed' ? datasetType : undefined,
-                    borderColor: color,
-                    backgroundColor: color + '33', // 20% opacity
-                    borderWidth: 2,
+                    borderColor: borderColor,
+                    backgroundColor: backgroundColor,
+                    borderWidth: chartOptions.type === 'pie' ? 1 : 2,
                     tension: chartOptions.curve === 'smooth' ? 0.4 : 0,
                     fill: chartOptions.type === 'area' || datasetType === 'area'
                 };

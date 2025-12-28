@@ -31,14 +31,17 @@ When generating SQL with display options, follow these rules EXACTLY:
 ```sql
 @chart type=line x=日付 y=売上,利益
 @chart type=mixed x=月 y=売上:bar,目標:line
+@chart type=pie x=店舗名 y=件数 colors="#FF6384,#36A2EB,#FFCE56,#4BC0C0,#9966FF"
 ```
 - **Required:** `type`, `x` (or `xAxis`), `y` (or `yAxis`)
 - **Chart types:** `line`, `bar`, `pie`, `area`, `scatter`, `mixed`
 - **Y-axis:** Comma-separated for multiple series (e.g., `y=店舗A,店舗B,店舗C`)
 - **Mixed charts:** Specify type for each series: `y=売上:bar,目標:line,達成率:line`
 - **Optional:** `title="タイトル"`, `legend=true`, `grid=true`, `stacked=true`, `curve=smooth`
+- **Colors (for pie charts):** `colors="#color1,#color2,#color3"` - Specify colors for each segment
 - Example: `@chart type=line x=日付 y=小村井店,京成小岩店 title="店舗別売上推移"`
 - Example: `@chart type=mixed x=月 y=売上:bar,目標:line title="売上と目標"`
+- Example: `@chart type=pie x=店舗名 y=件数 colors="#FF6384,#36A2EB,#FFCE56" title="店舗別シェア"`
 
 ### ❌ WRONG Examples
 ```sql
@@ -476,6 +479,11 @@ QueryCanvas now supports interactive chart visualization using Chart.js.
 | `pie` | Proportions | Market share, category breakdown |
 | `scatter` | Correlation | Price vs. quantity |
 | `mixed` 🆕 | Combined visualization | Sales (bar) + Target (line) |
+
+**Note for pie charts:** Use `colors` parameter to specify colors for each segment:
+```sql
+@chart type=pie x=店舗名 y=件数 colors="#FF6384,#36A2EB,#FFCE56,#4BC0C0,#9966FF"
+```
 
 ### Mixed Chart Examples 🆕
 

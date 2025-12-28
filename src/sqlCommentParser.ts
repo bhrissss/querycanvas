@@ -44,6 +44,8 @@ export interface ChartDisplayOptions {
     yAxis: string[];
     /** Y軸の各系列のチャートタイプ（混合チャート用） */
     yAxisTypes?: ('line' | 'bar' | 'area')[];
+    /** カスタムカラーパレット（円グラフ等で使用） */
+    colors?: string[];
     /** グラフタイトル */
     title?: string;
     /** 凡例を表示するか */
@@ -390,6 +392,7 @@ export class SqlCommentParser {
         let xAxis = '';
         let yAxis: string[] = [];
         let yAxisTypesArray: ('line' | 'bar' | 'area')[] = [];
+        let colors: string[] | undefined;
         let title: string | undefined;
         let showLegend = true;
         let showGrid = true;
@@ -463,6 +466,10 @@ export class SqlCommentParser {
                         curve = value;
                     }
                     break;
+                case 'colors':
+                    // カンマ区切りのカラーリスト
+                    colors = value.split(',').map(c => c.trim()).filter(c => c.length > 0);
+                    break;
             }
         }
 
@@ -485,6 +492,11 @@ export class SqlCommentParser {
         // yAxisTypesが指定されている場合のみ追加
         if (yAxisTypesArray.length > 0) {
             result.yAxisTypes = yAxisTypesArray;
+        }
+
+        // colorsが指定されている場合のみ追加
+        if (colors && colors.length > 0) {
+            result.colors = colors;
         }
 
         return result;

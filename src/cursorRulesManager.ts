@@ -255,6 +255,25 @@ SELECT 日付, 曜日, 小村井店, 京成小岩店 FROM daily_sales;
 - \`scatter\` - Scatter plot (correlations)
 - \`mixed\` - Mixed chart (bar + line): \`y=売上:bar,目標:line\`
 
+**Pie chart color specification:**
+For pie charts, use \`@row\` directives to specify colors for each segment:
+\`\`\`sql
+/**
+ * @chart type=pie x=店舗名 y=件数 title="店舗別シェア"
+ * @row 店舗名=="小村井店":color=#FF6384
+ * @row 店舗名=="京成小岩店":color=#36A2EB
+ * @row 店舗名=="その他":color=#FFCE56
+ */
+SELECT 店舗名, 件数 FROM sales;
+\`\`\`
+
+**Alternative:** You can also use \`colors\` parameter:
+\`\`\`sql
+@chart type=pie x=店舗名 y=件数 colors="#FF6384,#36A2EB,#FFCE56"
+\`\`\`
+
+**Priority:** \`@row\` directives > \`colors\` parameter > default palette
+
 **View toggle:**
 - **📊 テーブル** button: Table view
 - **📈 グラフ** button: Chart view
@@ -360,6 +379,14 @@ Create a sales trend chart query showing store A and store B with line chart
 Generate a mixed chart query with actual sales (bar) and target (line)
 \`\`\`
 
+\`\`\`
+Create a pie chart showing top 10 stores by sales with custom colors using @row directives
+\`\`\`
+
+\`\`\`
+Generate a pie chart query for store distribution with each store having a different color
+\`\`\`
+
 ### Database Schema
 
 **Location:** \`querycanvas-schema/tables/\`
@@ -452,6 +479,10 @@ Generate a mixed chart query showing monthly sales (bar) and target (line)
 
 \`\`\`
 Create a bar chart comparing top 10 products by revenue
+\`\`\`
+
+\`\`\`
+Create a pie chart for top 10 stores with @row directives to specify colors for each store
 \`\`\`
 
 ### Common Mistakes to Avoid ⚠️
