@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { ConnectionProfileManager, IDBConnection, ConnectionFactory } from './database';
 import { SchemaDocumentGenerator } from './schemaDocumentGenerator';
 import { QueryResultSaver } from './queryResultSaver';
+import { SessionStateManager } from './sessionStateManager';
+import { AutoQueryResultSaver } from './autoQueryResultSaver';
 
 /**
  * データベースクライアントのWebviewパネルを管理するクラス
@@ -12,15 +14,22 @@ export class DatabaseClientPanel {
 
     private readonly _panel: vscode.WebviewPanel;
     private readonly _profileManager: ConnectionProfileManager;
+    private readonly _sessionManager: SessionStateManager;
+    private readonly _autoSaver: AutoQueryResultSaver;
     private _disposables: vscode.Disposable[] = [];
     private _currentConnection: IDBConnection | null = null;
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, profileManager: ConnectionProfileManager) {
         this._panel = panel;
         this._profileManager = profileManager;
+        this._sessionManager = new SessionStateManager();
+        this._autoSaver = new AutoQueryResultSaver();
 
         // パネルのコンテンツを設定
         this._panel.webview.html = this._getHtmlContent();
+
+        // セッション状態を復元
+        this._restoreSession();
 
         // パネルが閉じられたときのクリーンアップ
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
@@ -94,6 +103,29 @@ export class DatabaseClientPanel {
     }
 
     /**
+     * セッション状態を復元
+     */
+    private _restoreSession() {
+        const state = this._sessionManager.getState();
+        
+        // SQL入力内容を復元
+        if (state.sqlInput) {
+            this.sendMessage({
+                type: 'restoreSession',
+                sqlInput: state.sqlInput,
+                connectionId: state.connectionId
+            });
+        }
+    }
+
+    /**
+     * SQL入力の変更を処理
+     */
+    private _handleSqlInputChanged(data: any) {
+        this._sessionManager.updateSqlInput(data.sql);
+    }
+
+    /**
      * Webviewからのメッセージを処理
      */
     private _handleMessage(message: any) {
@@ -127,6 +159,9 @@ export class DatabaseClientPanel {
                 break;
             case 'saveQueryResult':
                 this._handleSaveQueryResult(message.data);
+                break;
+            case 'sqlInputChanged':
+                this._handleSqlInputChanged(message.data);
                 break;
             case 'info':
                 vscode.window.showInformationMessage(message.text);
@@ -335,6 +370,9 @@ export class DatabaseClientPanel {
             // アクティブな接続として設定
             this._profileManager.setActiveConnection(data.profileId);
 
+            // セッション状態を更新
+            this._sessionManager.updateConnection(data.profileId, true);
+
             // 成功を通知
             this.sendMessage({
                 type: 'connectionResult',
@@ -369,6 +407,9 @@ export class DatabaseClientPanel {
 
             await this._currentConnection.disconnect();
             this._currentConnection = null;
+
+            // セッション状態を更新
+            this._sessionManager.updateConnection(null, false);
 
             this.sendMessage({
                 type: 'disconnectionResult',
@@ -539,6 +580,24 @@ export class DatabaseClientPanel {
 
             // クエリを実行
             const result = await this._currentConnection.executeQuery(query);
+
+            // 結果を自動保存（TSV形式）
+            if (result.rows.length > 0) {
+                try {
+                    const rows = result.rows.map((row: any) => {
+                        return result.columns.map((col: string) => row[col]);
+                    });
+                    const filePath = this._autoSaver.autoSaveQueryResult(
+                        result.columns,
+                        rows,
+                        query
+                    );
+                    console.log(`クエリ結果を自動保存: ${filePath}`);
+                } catch (saveError) {
+                    console.error('自動保存エラー:', saveError);
+                    // 自動保存エラーは無視して続行
+                }
+            }
 
             // 結果を送信
             this.sendMessage({
@@ -873,7 +932,7 @@ export class DatabaseClientPanel {
 
     <div class="section">
         <div class="section-title">SQL入力</div>
-        <textarea id="sqlInput" placeholder="SELECT * FROM users;"></textarea>
+        <textarea id="sqlInput" placeholder="SELECT * FROM users;" oninput="onSqlInputChange()"></textarea>
         <div class="button-group">
             <button onclick="executeQuery()">▶ 実行</button>
             <button class="secondary" onclick="clearSQL()">クリア</button>
@@ -1030,6 +1089,7 @@ export class DatabaseClientPanel {
         
         let currentProfileId = null;
         let isConnected = false;
+        let sqlInputDebounceTimer = null;
 
         // 初期化時にプロファイル一覧を取得
         window.addEventListener('load', () => {
@@ -1065,6 +1125,9 @@ export class DatabaseClientPanel {
                     break;
                 case 'saveResult':
                     handleSaveResult(message);
+                    break;
+                case 'restoreSession':
+                    handleRestoreSession(message);
                     break;
             }
         });
@@ -1338,6 +1401,34 @@ export class DatabaseClientPanel {
             }
 
             showMessage(\`クエリ結果を保存しました: \${message.fileName}\`, 'success');
+        }
+
+        function handleRestoreSession(message) {
+            // SQL入力を復元
+            if (message.sqlInput) {
+                document.getElementById('sqlInput').value = message.sqlInput;
+            }
+            
+            // 接続プロファイルを選択（接続はしない）
+            if (message.connectionId) {
+                const select = document.getElementById('profileSelect');
+                select.value = message.connectionId;
+            }
+        }
+
+        function onSqlInputChange() {
+            // デバウンス処理（500ms待機）
+            if (sqlInputDebounceTimer) {
+                clearTimeout(sqlInputDebounceTimer);
+            }
+            
+            sqlInputDebounceTimer = setTimeout(() => {
+                const sql = document.getElementById('sqlInput').value;
+                vscode.postMessage({
+                    type: 'sqlInputChanged',
+                    data: { sql }
+                });
+            }, 500);
         }
 
         function handleQueryResult(message) {

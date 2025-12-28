@@ -3,6 +3,7 @@ out
 *.vsix
 .vscode-test/
 .vscode/db-connections.json
+.vscode/db-client-session.json
 db-schema/
 query-results/
 
