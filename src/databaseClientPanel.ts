@@ -1247,7 +1247,6 @@ export class DatabaseClientPanel {
 <body>
     <!-- 上部：機能ボタン -->
     <div class="toolbar">
-        <button onclick="getTableSchema()">📋 テーブル定義</button>
         <button onclick="openSavedQueries()">💾 保存済みクエリ</button>
     </div>
 
@@ -1287,6 +1286,7 @@ export class DatabaseClientPanel {
             <span class="connection-status connected"></span>
             <span id="connectedText">接続中: </span>
             <button onclick="disconnectFromDatabase()" class="secondary">切断</button>
+            <button onclick="getTableSchema()" class="secondary">📋 テーブル定義</button>
         </div>
     </div>
 
