@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ConnectionProfileManager } from './database';
 
 /**
  * データベースクライアントのWebviewパネルを管理するクラス
@@ -8,10 +9,12 @@ export class DatabaseClientPanel {
     private static readonly viewType = 'databaseClient';
 
     private readonly _panel: vscode.WebviewPanel;
+    private readonly _profileManager: ConnectionProfileManager;
     private _disposables: vscode.Disposable[] = [];
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, profileManager: ConnectionProfileManager) {
         this._panel = panel;
+        this._profileManager = profileManager;
 
         // パネルのコンテンツを設定
         this._panel.webview.html = this._getHtmlContent();
@@ -32,7 +35,7 @@ export class DatabaseClientPanel {
     /**
      * データベースクライアントパネルを表示または作成
      */
-    public static createOrShow(extensionUri: vscode.Uri) {
+    public static createOrShow(extensionUri: vscode.Uri, profileManager: ConnectionProfileManager) {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -54,7 +57,7 @@ export class DatabaseClientPanel {
             }
         );
 
-        DatabaseClientPanel.currentPanel = new DatabaseClientPanel(panel, extensionUri);
+        DatabaseClientPanel.currentPanel = new DatabaseClientPanel(panel, extensionUri, profileManager);
     }
 
     /**
@@ -85,6 +88,9 @@ export class DatabaseClientPanel {
      */
     private _handleMessage(message: any) {
         switch (message.type) {
+            case 'getProfiles':
+                this._handleGetProfiles();
+                break;
             case 'testConnection':
                 this._handleTestConnection(message.data);
                 break;
@@ -98,6 +104,20 @@ export class DatabaseClientPanel {
                 vscode.window.showErrorMessage(message.text);
                 break;
         }
+    }
+
+    /**
+     * 接続プロファイル一覧を取得
+     */
+    private _handleGetProfiles() {
+        const profiles = this._profileManager.getAllProfiles();
+        const activeId = this._profileManager.getActiveConnectionId();
+        
+        this.sendMessage({
+            type: 'profilesList',
+            profiles,
+            activeId
+        });
     }
 
     /**
