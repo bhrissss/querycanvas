@@ -2995,20 +2995,26 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
                     return value !== null && value !== undefined ? Number(value) : 0;
                 });
 
+                // 混合チャートの場合、各データセットのタイプを設定
+                const datasetType = chartOptions.yAxisTypes && chartOptions.yAxisTypes[index]
+                    ? chartOptions.yAxisTypes[index]
+                    : (chartOptions.type === 'area' ? 'line' : chartOptions.type);
+
                 return {
                     label: yColumn,
                     data: data,
+                    type: chartOptions.type === 'mixed' ? datasetType : undefined,
                     borderColor: color,
                     backgroundColor: color + '33', // 20% opacity
                     borderWidth: 2,
                     tension: chartOptions.curve === 'smooth' ? 0.4 : 0,
-                    fill: chartOptions.type === 'area'
+                    fill: chartOptions.type === 'area' || datasetType === 'area'
                 };
             });
 
             // Chart.jsの設定
             const config = {
-                type: chartOptions.type === 'area' ? 'line' : chartOptions.type,
+                type: chartOptions.type === 'mixed' ? 'bar' : (chartOptions.type === 'area' ? 'line' : chartOptions.type),
                 data: {
                     labels: labels,
                     datasets: datasets

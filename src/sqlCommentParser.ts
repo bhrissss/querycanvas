@@ -37,11 +37,13 @@ export interface RowStyleRule {
 /** グラフ表示オプション */
 export interface ChartDisplayOptions {
     /** グラフタイプ (line, bar, pie, area など) */
-    type: 'line' | 'bar' | 'pie' | 'area' | 'scatter';
+    type: 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'mixed';
     /** X軸に使用する列名 */
     xAxis: string;
     /** Y軸に使用する列名（複数系列対応） */
     yAxis: string[];
+    /** Y軸の各系列のチャートタイプ（混合チャート用） */
+    yAxisTypes?: ('line' | 'bar' | 'area')[];
     /** グラフタイトル */
     title?: string;
     /** 凡例を表示するか */
@@ -387,6 +389,7 @@ export class SqlCommentParser {
         let chartType: ChartDisplayOptions['type'] = 'line';
         let xAxis = '';
         let yAxis: string[] = [];
+        let yAxisTypesArray: ('line' | 'bar' | 'area')[] = [];
         let title: string | undefined;
         let showLegend = true;
         let showGrid = true;
@@ -402,7 +405,7 @@ export class SqlCommentParser {
 
             switch (key) {
                 case 'type':
-                    if (value === 'line' || value === 'bar' || value === 'pie' || value === 'area' || value === 'scatter') {
+                    if (value === 'line' || value === 'bar' || value === 'pie' || value === 'area' || value === 'scatter' || value === 'mixed') {
                         chartType = value;
                     }
                     break;
@@ -413,7 +416,33 @@ export class SqlCommentParser {
                 case 'y':
                 case 'yAxis':
                     // カンマ区切りで複数系列対応
-                    yAxis = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                    // 各系列は "列名:タイプ" の形式も可能（例: "売上:bar,利益:line"）
+                    const series = value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                    const yAxisTypes: ('line' | 'bar' | 'area')[] = [];
+                    
+                    yAxis = series.map(s => {
+                        // "列名:タイプ" の形式をチェック
+                        const colonIndex = s.indexOf(':');
+                        if (colonIndex > 0) {
+                            const colName = s.substring(0, colonIndex);
+                            const colType = s.substring(colonIndex + 1);
+                            if (colType === 'line' || colType === 'bar' || colType === 'area') {
+                                yAxisTypes.push(colType);
+                            } else {
+                                yAxisTypes.push('line'); // デフォルト
+                            }
+                            return colName;
+                        } else {
+                            yAxisTypes.push('line'); // デフォルト
+                            return s;
+                        }
+                    });
+                    
+                    // yAxisTypesが指定されている場合のみ保存
+                    if (yAxisTypes.some(t => t !== 'line') || chartType === 'mixed') {
+                        // @ts-ignore - yAxisTypesを後で設定
+                        yAxisTypesArray = yAxisTypes;
+                    }
                     break;
                 case 'title':
                     title = value;
@@ -442,7 +471,7 @@ export class SqlCommentParser {
             return null;
         }
 
-        return {
+        const result: ChartDisplayOptions = {
             type: chartType,
             xAxis,
             yAxis,
@@ -452,6 +481,13 @@ export class SqlCommentParser {
             stacked,
             curve
         };
+
+        // yAxisTypesが指定されている場合のみ追加
+        if (yAxisTypesArray.length > 0) {
+            result.yAxisTypes = yAxisTypesArray;
+        }
+
+        return result;
     }
 
     /**
