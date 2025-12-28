@@ -1016,6 +1016,8 @@ export class DatabaseClientPanel {
     <title>Database Client</title>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Chart.js DataLabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -2954,6 +2956,7 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
 
         // グラフ描画用の変数
         let currentChart = null;
+        let pieChartLabelPluginRegistered = false; // プラグイン登録状態を管理
 
         /**
          * グラフを描画
@@ -3060,6 +3063,252 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
                 };
             });
 
+            // カスタムプラグイン：ラベル線を描画（円グラフ用）
+            // プラグインは一度だけ登録する
+            if (chartOptions.type === 'pie' && typeof Chart !== 'undefined' && Chart.register && !pieChartLabelPluginRegistered) {
+                const labelLinePlugin = {
+                    id: 'pieChartLabelLine',
+                    afterDraw: (chart) => {
+                        if (chart.config.type !== 'pie') return;
+                        
+                        const ctx = chart.ctx;
+                        const chartArea = chart.chartArea;
+                        const meta = chart.getDatasetMeta(0);
+                        
+                        if (!meta || !meta.data || meta.data.length === 0) {
+                            return;
+                        }
+                        
+                        // キャンバスのサイズを取得
+                        const canvas = chart.canvas;
+                        const canvasWidth = canvas.width;
+                        const canvasHeight = canvas.height;
+                        
+                        // ラベルを表示する位置（右側、キャンバス内に収まるように）
+                        // 色インジケーター（12px）+ 間隔（5px）+ ラベルテキスト
+                        const labelXRight = Math.min(chartArea.right + 30, canvasWidth - 150);
+                        const labelSpacing = 22;
+                        
+                        // フォントと色の設定（VS Codeのテーマに合わせる）
+                        const foregroundColor = getComputedStyle(document.body).getPropertyValue('--vscode-foreground') || '#cccccc';
+                        const fontFamily = 'sans-serif'; // シンプルなフォントを使用
+                        
+                        // フォントサイズとスタイルを明示的に設定
+                        const fontSize = 12;
+                        const fontWeight = 'bold';
+                        
+                        // フォントを設定して文字列の幅を測定できるようにする
+                        ctx.font = fontWeight + ' ' + fontSize + 'px ' + fontFamily;
+                        
+                        // セグメントを値の大きい順にソート（SQLのORDER BY順に合わせる）
+                        const segments = meta.data.map((element, index) => {
+                            const value = chart.data.datasets[0].data[index];
+                            return {
+                                element: element,
+                                index: index,
+                                value: value
+                            };
+                        }).sort((a, b) => b.value - a.value); // 大きい順
+                        
+                        // ソートされた順序でラベルを描画
+                        segments.forEach((segmentInfo) => {
+                            const element = segmentInfo.element;
+                            const index = segmentInfo.index;
+                            const model = element;
+                            const label = chart.data.labels && chart.data.labels[index] ? chart.data.labels[index] : 'Label ' + index;
+                            const value = chart.data.datasets[0].data[index];
+                            const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                            
+                            // セグメントの中心点を計算
+                            const angle = (model.startAngle + model.endAngle) / 2;
+                            const radius = model.outerRadius;
+                            const centerX = model.x;
+                            const centerY = model.y;
+                            
+                            // セグメントの外側の点（円の外側、少し余裕を持たせる）
+                            const labelLineExtension = 20; // 円の外側に伸ばす距離
+                            const outerRadius = radius + labelLineExtension;
+                            const outerX = centerX + Math.cos(angle) * outerRadius;
+                            const outerY = centerY + Math.sin(angle) * outerRadius;
+                            
+                            // 水平引き出し線の開始点（円の外側の点から水平方向に伸ばす）
+                            // 角度に応じて右側または左側にラベルを配置
+                            const isRightSide = Math.cos(angle) >= 0; // 右側（-90度〜90度）
+                            const horizontalLineStartX = outerX;
+                            const horizontalLineStartY = outerY;
+                            
+                            // ラベルテキストの長さを事前に計算
+                            const labelText = label + ' (' + percentage + '%)';
+                            const textWidth = ctx.measureText(labelText).width;
+                            
+                            // 色インジケーターの位置を計算（水平線のY座標に基づく）
+                            const indicatorSize = 12;
+                            const indicatorSpacing = 5; // インジケーターとテキストの間隔
+                            const minDistanceFromChart = 30; // 円グラフからの最小距離
+                            
+                            // 左側の場合は、文字列の長さを考慮してラベルの右端を計算
+                            let labelX;
+                            let indicatorX;
+                            let horizontalLineEndX;
+                            
+                            if (isRightSide) {
+                                // 右側：固定位置
+                                labelX = labelXRight;
+                                indicatorX = labelX - indicatorSize - indicatorSpacing;
+                                horizontalLineEndX = indicatorX + indicatorSize / 2;
+                            } else {
+                                // 左側：文字列の長さを考慮して、ラベルの右端が円グラフの左端から適切な距離に配置
+                                // ラベルの右端 = 円グラフの左端 - 最小距離
+                                const labelRightEdge = chartArea.left - minDistanceFromChart;
+                                // ラベルの左端 = 右端 - 文字列の幅
+                                const labelLeftEdge = labelRightEdge - textWidth;
+                                // インジケーターはラベルの左側に配置
+                                indicatorX = labelLeftEdge - indicatorSize - indicatorSpacing;
+                                // ラベルの位置（右端、textAlign='right'なので）
+                                labelX = labelRightEdge;
+                                // 水平線の終点はインジケーターの右端（左側の「ひげ」を防ぐ）
+                                horizontalLineEndX = indicatorX + indicatorSize / 2;
+                                
+                                // キャンバスの左端を超えないように調整
+                                const minX = 20; // キャンバスの左端からの最小距離
+                                if (indicatorX < minX) {
+                                    // インジケーターが左端を超える場合は、全体を右にシフト
+                                    const shift = minX - indicatorX;
+                                    indicatorX = minX;
+                                    labelX += shift;
+                                    horizontalLineEndX += shift;
+                                }
+                            }
+                            
+                            // 水平線のY座標を計算（キャンバス内に収まるように調整）
+                            // ラベルがキャンバスの上下の範囲内に収まるように調整
+                            const labelHeight = 20; // ラベルの高さ
+                            const minY = 10; // キャンバスの上端からの最小距離
+                            const maxY = canvasHeight - 10; // キャンバスの下端からの最小距離
+                            
+                            let adjustedY = horizontalLineStartY;
+                            if (adjustedY < minY + labelHeight / 2) {
+                                adjustedY = minY + labelHeight / 2;
+                            } else if (adjustedY > maxY - labelHeight / 2) {
+                                adjustedY = maxY - labelHeight / 2;
+                            }
+                            
+                            // 水平線の開始点と終点のY座標を同じにする（水平線を保つ）
+                            const horizontalLineEndY = adjustedY;
+                            const adjustedHorizontalLineStartY = adjustedY;
+                            
+                            // 線を描画（2段階：放射線 + 水平線）
+                            const segmentColor = Array.isArray(model.options.backgroundColor) 
+                                ? model.options.backgroundColor[index] 
+                                : model.options.backgroundColor;
+                            
+                            ctx.save();
+                            ctx.strokeStyle = segmentColor || '#999999';
+                            ctx.lineWidth = 2;
+                            
+                            // 1. 円の中心から外側への放射線
+                            ctx.beginPath();
+                            ctx.moveTo(centerX, centerY);
+                            ctx.lineTo(outerX, outerY);
+                            ctx.stroke();
+                            
+                            // 2. 外側の点からラベルへの水平引き出し線
+                            // まず、外側の点から調整後のY座標まで垂直に線を引く（必要に応じて）
+                            ctx.beginPath();
+                            if (Math.abs(horizontalLineStartY - adjustedHorizontalLineStartY) > 0.1) {
+                                // Y座標が調整されている場合は、まず垂直線を引く
+                                ctx.moveTo(horizontalLineStartX, horizontalLineStartY);
+                                ctx.lineTo(horizontalLineStartX, adjustedHorizontalLineStartY);
+                                ctx.stroke();
+                            }
+                            // 次に、水平線を引く
+                            ctx.beginPath();
+                            ctx.moveTo(horizontalLineStartX, adjustedHorizontalLineStartY);
+                            ctx.lineTo(horizontalLineEndX, horizontalLineEndY);
+                            ctx.stroke();
+                            ctx.restore();
+                            
+                            // ラベルを描画
+                            ctx.textAlign = isRightSide ? 'left' : 'right'; // 右側は左揃え、左側は右揃え
+                            ctx.textBaseline = 'middle';
+                            
+                            // 色のインジケーター（小さな四角）を描画（ボーダーなし）
+                            // 水平線の終点に合わせて位置を調整
+                            const finalIndicatorY = horizontalLineEndY - indicatorSize / 2;
+                            ctx.save();
+                            ctx.fillStyle = segmentColor || '#999999';
+                            ctx.fillRect(indicatorX, finalIndicatorY, indicatorSize, indicatorSize);
+                            
+                            // テキストを描画（色を明示的に設定、背景色を追加して見やすく）
+                            const finalLabelY = horizontalLineEndY;
+                            const textBackgroundX = isRightSide 
+                                ? labelX - 2  // 右側：ラベルの左端から
+                                : labelX - textWidth - 2; // 左側：ラベルの右端から（textAlign='right'なので）
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(textBackgroundX, finalLabelY - 10, textWidth + 4, 20);
+                            ctx.fillStyle = foregroundColor || '#000000';
+                            ctx.fillText(labelText, labelX, finalLabelY);
+                            ctx.restore();
+                        });
+                    }
+                };
+
+                try {
+                    Chart.register(labelLinePlugin);
+                    pieChartLabelPluginRegistered = true;
+                } catch (e) {
+                    // 既に登録されている場合は無視
+                    console.log('Plugin registration:', e);
+                    pieChartLabelPluginRegistered = true; // エラーでも登録済みとして扱う
+                }
+                
+                // 円グラフのサイズを80%に縮小するプラグイン
+                const pieSizePlugin = {
+                    id: 'pieSizeReducer',
+                    afterLayout: (chart) => {
+                        if (chart.config.type !== 'pie') return;
+                        
+                        const meta = chart.getDatasetMeta(0);
+                        if (!meta || !meta.data || meta.data.length === 0) {
+                            return;
+                        }
+                        
+                        // チャートエリアのサイズを取得
+                        const chartArea = chart.chartArea;
+                        const availableWidth = chartArea.right - chartArea.left;
+                        const availableHeight = chartArea.bottom - chartArea.top;
+                        const availableSize = Math.min(availableWidth, availableHeight);
+                        
+                        // 80%のサイズに縮小
+                        const targetRadius = (availableSize * 0.8) / 2;
+                        const centerX = (chartArea.left + chartArea.right) / 2;
+                        const centerY = (chartArea.top + chartArea.bottom) / 2;
+                        
+                        // 各セグメントの半径を調整
+                        meta.data.forEach((element) => {
+                            const model = element;
+                            // 半径を80%に縮小
+                            model.outerRadius = targetRadius;
+                            model.innerRadius = 0; // 円グラフなので内側の半径は0
+                            
+                            // 中心位置を調整（チャートエリアの中央に配置）
+                            model.x = centerX;
+                            model.y = centerY;
+                        });
+                    }
+                };
+                
+                if (chartOptions.type === 'pie' && typeof Chart !== 'undefined' && Chart.register) {
+                    try {
+                        Chart.register(pieSizePlugin);
+                    } catch (e) {
+                        // 既に登録されている場合は無視
+                        console.log('Pie size plugin registration:', e);
+                    }
+                }
+            }
+
             // Chart.jsの設定
             const config = {
                 type: chartOptions.type === 'mixed' ? 'bar' : (chartOptions.type === 'area' ? 'line' : chartOptions.type),
@@ -3070,9 +3319,17 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: chartOptions.type === 'pie' ? {
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                            left: 0
+                        } : undefined
+                    },
                     plugins: {
                         legend: {
-                            display: chartOptions.showLegend !== false,
+                            display: chartOptions.showLegend !== false && chartOptions.type !== 'pie',
                             position: 'top',
                             labels: {
                                 color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
