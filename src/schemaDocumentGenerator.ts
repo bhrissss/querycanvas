@@ -167,8 +167,8 @@ export class SchemaDocumentGenerator {
         let md = `# ${tableName} Table\n\n`;
         md += `**${t('schema.template.physicalName')}**: ${tableName}\n`;
         
-        // 論理名
-        const logicalName = existingComments.get('_table_logical_name') || t('schema.template.logicalNamePrompt');
+        // 論理名（デフォルトは物理名と同じ）
+        const logicalName = existingComments.get('_table_logical_name') || tableName;
         md += `**${t('schema.template.logicalName')}**: ${logicalName}\n`;
         md += `**${t('schema.template.lastUpdated')}**: ${now}\n\n`;
 
@@ -197,7 +197,8 @@ export class SchemaDocumentGenerator {
         
         for (const col of columns) {
             const columnInfo = existingComments.get(col.name);
-            const logicalName = columnInfo?.logicalName || '';
+            // 論理名（デフォルトは物理名と同じ）
+            const logicalName = columnInfo?.logicalName || col.name;
             const description = columnInfo?.description || '';
             
             md += `- \`${col.name}\`\n`;

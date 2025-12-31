@@ -53,6 +53,9 @@ export class DatabaseClientPanel {
             null,
             this._disposables
         );
+
+        // Cursor Rules ボタンの表示状態をチェック
+        this._checkCursorRulesButtonVisibility();
     }
 
     /**
@@ -247,8 +250,34 @@ export class DatabaseClientPanel {
             // CursorRulesManager のインポート
             const { CursorRulesManager } = await import('./cursorRulesManager');
             await CursorRulesManager.addQueryCanvasRules();
+            
+            // 書き込み後にボタンの表示状態を更新
+            await this._checkCursorRulesButtonVisibility();
         } catch (error) {
             vscode.window.showErrorMessage(`Cursor AI Rules セットアップエラー: ${error}`);
+        }
+    }
+
+    /**
+     * Cursor Rules ボタンの表示状態をチェックして更新
+     */
+    private async _checkCursorRulesButtonVisibility() {
+        try {
+            const { CursorRulesManager } = await import('./cursorRulesManager');
+            const isAlreadyWritten = await CursorRulesManager.isLatestTemplateAlreadyWritten();
+            
+            // Webviewにボタンの表示状態を通知
+            this.sendMessage({
+                type: 'updateCursorRulesButtonVisibility',
+                visible: !isAlreadyWritten
+            });
+        } catch (error) {
+            console.error('Error checking cursor rules button visibility:', error);
+            // エラー時はボタンを表示する（安全側）
+            this.sendMessage({
+                type: 'updateCursorRulesButtonVisibility',
+                visible: true
+            });
         }
     }
 
@@ -1773,7 +1802,7 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
             </select>
             <button onclick="connectToDatabase()">接続</button>
             <button onclick="openConnectionManager()">⚙️ 接続管理</button>
-            <button onclick="setupCursorRules()">📝 Cursor AI設定</button>
+            <button id="setupCursorRulesBtn" onclick="setupCursorRules()">📝 Cursor AI設定</button>
         </div>
         
         <!-- 接続時 -->
@@ -2131,6 +2160,9 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
                     break;
                 case 'sqlFormatted':
                     handleSqlFormatted(message);
+                    break;
+                case 'updateCursorRulesButtonVisibility':
+                    handleUpdateCursorRulesButtonVisibility(message);
                     break;
             }
         });
@@ -3513,6 +3545,13 @@ SELECT ステータス, 警告 FROM monitoring;</code></pre>
         function setupCursorRules() {
             // Cursor AI Rules セットアップコマンドを実行
             vscode.postMessage({ type: 'setupCursorRules' });
+        }
+
+        function handleUpdateCursorRulesButtonVisibility(message) {
+            const button = document.getElementById('setupCursorRulesBtn');
+            if (button) {
+                button.style.display = message.visible ? 'inline-block' : 'none';
+            }
         }
 
         function closeSavedQueries() {
